@@ -21,9 +21,9 @@
     --text-xxxxxl: calc(var(--text-base-size) * var(--text-scale-ratio) * var(--text-scale-ratio) * var(--text-scale-ratio) * var(--text-scale-ratio) * var(--text-scale-ratio) * var(--text-scale-ratio));
 
     /* Colors */
-    --primary-color: hsl(96, 57%, 60%);
-    --primary-color-darken: hsl(96, 57%, 40%);
-    --primary-color-darker: hsl(96, 57%, 20%);
+    --primary-color:#EC6608;;
+    --primary-color-darken: #EC6608;
+    --primary-color-darker: #EC6608;
     --primary-color-darkest: hsl(96, 57%, 10%);
     --primary-color-lighten: hsl(96, 57%, 80%);
     --primary-color-lighter: hsl(96, 57%, 99%);
@@ -49,7 +49,7 @@
     --admonition-success-color: var(--primary-color);
     --admonition-border-color: silver;
     --table-separator-color: var(--primary-color-lighten);
-    --title-text-color: var(--primary-color);
+    --title-text-color: var(--primary-color-darkest);
 
     --sidebar-border-color: var(--primary-color-lighten);
 
@@ -532,13 +532,18 @@ td.phpdocumentor-cell:last-child {
 
 .phpdocumentor-header {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: stretch;
     flex-wrap: wrap;
-    justify-content: space-between;
     height: auto;
-    padding: var(--spacing-md) var(--spacing-md);
+    padding: 0;
+
 }
+
+.header-wrapper {
+    display: flex;
+    width: 100%;
+} 
 
 .phpdocumentor-header__menu-button {
     position: absolute;
@@ -549,6 +554,7 @@ td.phpdocumentor-cell:last-child {
 .phpdocumentor-header__menu-icon {
     font-size: 2rem;
     color: var(--primary-color);
+    margin-left: auto;
 }
 
 .phpdocumentor-header__menu-button:checked ~ .phpdocumentor-topnav {
@@ -558,8 +564,8 @@ td.phpdocumentor-cell:last-child {
 
 @media (min-width: 1000px) {
     .phpdocumentor-header {
-        flex-direction: row;
-        padding: var(--spacing-lg) var(--spacing-lg);
+        flex-direction: column;
+        padding: 0;
         min-height: var(--header-height);
     }
 
@@ -589,6 +595,7 @@ td.phpdocumentor-cell:last-child {
     margin: 0;
     display: flex;
     align-items: center;
+    margin-left: 1.5rem;
 }
 
 .phpdocumentor-title.-without-divider {
@@ -604,6 +611,7 @@ td.phpdocumentor-cell:last-child {
     white-space: nowrap;
     transform: scale(.75);
     transform-origin: left;
+    font-weight: 700;
 }
 
 .phpdocumentor-title__link:hover {
@@ -614,7 +622,6 @@ td.phpdocumentor-cell:last-child {
 @media (min-width: 1000px) {
     .phpdocumentor-title {
         width: 30.6666666667%;
-        border-right: var(--sidebar-border-color) solid 1px;
     }
 
     .phpdocumentor-title__link {
@@ -738,7 +745,6 @@ td.phpdocumentor-cell:last-child {
 }
 
 .phpdocumentor .phpdocumentor-sidebar__category > * {
-    border-left: 1px solid var(--primary-color-lighten);
 }
 
 .phpdocumentor .phpdocumentor-sidebar__category {
@@ -765,7 +771,6 @@ td.phpdocumentor-cell:last-child {
 
 @media (min-width: 550px) {
     .phpdocumentor-sidebar {
-        border-right: var(--sidebar-border-color) solid 1px;
     }
 }
 
@@ -873,12 +878,21 @@ td.phpdocumentor-cell:last-child {
     margin: var(--spacing-sm) 0;
     flex: 1;
     min-width: 100%;
+    background-color: var(--primary-color);
+    height: 190px;
 }
 
 .phpdocumentor-search label {
     display: flex;
     align-items: center;
     flex: 1;
+    width: 100%;
+    margin: auto;
+    flex-direction: column;
+    max-width: 830px;
+    color: #ffffff;
+    font-size: 2rem;
+    padding: 2rem 0;
 }
 
 .phpdocumentor-search__icon {
@@ -886,6 +900,7 @@ td.phpdocumentor-cell:last-child {
     margin-right: var(--spacing-sm);
     width: 1rem;
     height: 1rem;
+    display: none;
 }
 
 .phpdocumentor-search--enabled {
@@ -908,13 +923,23 @@ td.phpdocumentor-cell:last-child {
     padding: 0;
     border-radius: 0;
     flex: 1;
+    max-width: 830px;
+    padding: 1rem;
+    width: 90%;
+    font-size: 1rem;
+    height: 50px;
+    border-radius: 30px;
+    -webkit-border-radius: 30px;
+    -moz-border-radius: 30px;
+    -ms-border-radius: 30px;
+    -o-border-radius: 30px;
+    margin-top: 1.5rem;
 }
 
 @media (min-width: 1000px) {
     .phpdocumentor-search {
         min-width: auto;
-        max-width: 20rem;
-        margin: 0 0 0 auto;
+        width: 100%;
     }
 }
 .phpdocumentor-content {
@@ -1084,4 +1109,10 @@ td.phpdocumentor-cell:last-child {
 
 .float-left {
     float: left;
+}
+
+h1.phpdocumentor-aside-title a {
+    font-weight: 400;
+    color: var(--primary-color) !important;
+    margin-top: 1.25rem;
 }
