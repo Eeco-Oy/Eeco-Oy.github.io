@@ -1,0 +1,106 @@
+<?php
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * extending wc_product class to add a new product type
+ * overriding all the necessary methods
+ */
+class WC_Product_Online_Gift_Card extends WC_Product {
+    public function __construct( $product ) {
+
+        $this->product_type = 'online_gift_card';
+
+        parent::__construct( $product );
+        
+    }
+
+    /**
+     * returns the product type
+     * @return string Product type
+     */
+    public function get_type() {
+		return 'online_gift_card';
+	}
+
+    /**
+	 * get the add to cart button text.
+	 * @return string The text
+	 */
+	public function add_to_cart_text() {
+		$text = $this->is_purchasable() && $this->is_in_stock() ? __( 'Set price', 'eeco-gift-cards' ) : __( 'Read more', 'eeco-gift-cards' );
+
+		return apply_filters( 'woocommerce_product_add_to_cart_text', $text, $this );
+    }
+
+    /**
+     * checks if product is purchasable
+     * @return boolean whether purchasable
+     */
+    // public function is_purchasable(){
+    //     return false;
+    // }
+    
+    /**
+     * formats the price html
+     * @param int|string $price The price to format
+     * @return string Price html
+     */
+    public function get_price_html( $price = '' ){
+        if(is_product()){
+            return;
+        }
+        else if(!is_cart() && !is_checkout()){
+            $rec_price = get_post_meta($this->get_id(), '_gift_card_rec_price', true);
+            $min_price = empty($rec_price) ? $this->get_regular_price() : $rec_price;
+
+            return '<span class="woocommerce-Price-amount amount">'. __( 'For example: ', 'eeco-gift-cards' ).' '.wc_price($min_price).'</span>';
+        }
+
+        return $price;
+    }
+
+    /**
+     * button description used in tags
+     * @return string The description
+     */
+    public function add_to_cart_description() {
+		/* translators: %s: Product title */
+		$text = $this->is_purchasable() && $this->is_in_stock() ? __( 'Set the gift card price', 'eeco-gift-cards' ) : __( 'Read more about this gift card;', 'eeco-gift-cards' );
+
+		return apply_filters( 'woocommerce_product_add_to_cart_description', sprintf( $text, $this->get_name() ), $this );
+    }
+    
+    /**
+     * returns the minimum price for given product
+     * @return float
+     */
+    public function get_min_price(){
+        return get_post_meta($this->get_id(), '_gift_card_min_price', true);
+    }
+
+    /**
+     * returns the maximum price for given product
+     * @return float
+     */
+    public function get_max_price(){
+        return get_post_meta($this->get_id(), '_gift_card_max_price', true);
+    }
+
+    /**
+     * returns the recommended price for given product
+     * @return float
+     */
+    public function get_recommended_price(){
+        return get_post_meta($this->get_id(), '_gift_card_rec_price', true);
+    }
+
+    /**
+     * returns the tax status
+     * @param string $context The context
+     * @return string
+     */
+    public function get_tax_status($context = 'view'){
+        return 'none';
+    }
+}

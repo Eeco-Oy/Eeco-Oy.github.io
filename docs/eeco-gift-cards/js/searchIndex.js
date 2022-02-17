@@ -21,35 +21,70 @@ Search.appendIndex(
             "summary": "",
             "url": "namespaces/default.html#constant_EECO_GIFT_CARDS_ROOT"
         },                {
-            "fqsen": "\\Eeco_Gift_Cards",
-            "name": "Eeco_Gift_Cards",
-            "summary": "",
-            "url": "classes/Eeco-Gift-Cards.html"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards\u003A\u003A__construct\u0028\u0029",
-            "name": "__construct",
-            "summary": "add\u0020initial\u0020actions",
-            "url": "classes/Eeco-Gift-Cards.html#method___construct"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards\u003A\u003Aactivate\u0028\u0029",
-            "name": "activate",
+            "fqsen": "\\activate_eeco_gift_cards\u0028\u0029",
+            "name": "activate_eeco_gift_cards",
             "summary": "check\u0020for\u0020plugin\u0020dependencies\u0020and\u0020deactivate\u0020plugin\u0020if\u0020they\u0020don\u0027t\u0020exist",
-            "url": "classes/Eeco-Gift-Cards.html#method_activate"
+            "url": "namespaces/default.html#function_activate_eeco_gift_cards"
         },                {
-            "fqsen": "\\Eeco_Gift_Cards\u003A\u003Ainit_plugin\u0028\u0029",
-            "name": "init_plugin",
+            "fqsen": "\\deactivate_eeco_gift_cards\u0028\u0029",
+            "name": "deactivate_eeco_gift_cards",
+            "summary": "deactivate\u0020plugin",
+            "url": "namespaces/default.html#function_deactivate_eeco_gift_cards"
+        },                {
+            "fqsen": "\\init_eeco_gift_cards\u0028\u0029",
+            "name": "init_eeco_gift_cards",
             "summary": "init\u0020plugin\u0020functionalities",
-            "url": "classes/Eeco-Gift-Cards.html#method_init_plugin"
+            "url": "namespaces/default.html#function_init_eeco_gift_cards"
         },                {
-            "fqsen": "\\Eeco_Gift_Cards\u003A\u003Aincludes\u0028\u0029",
-            "name": "includes",
-            "summary": "include\u0020necessary\u0020files",
-            "url": "classes/Eeco-Gift-Cards.html#method_includes"
+            "fqsen": "\\resend_email\u0028\u0029",
+            "name": "resend_email",
+            "summary": "Resend\u0020the\u0020gift\u0020card\u0020to\u0020customer",
+            "url": "namespaces/default.html#function_resend_email"
         },                {
-            "fqsen": "\\Eeco_Gift_Cards\u003A\u003Adb_update\u0028\u0029",
-            "name": "db_update",
-            "summary": "update\u0020the\u0020db",
-            "url": "classes/Eeco-Gift-Cards.html#method_db_update"
+            "fqsen": "\\eeco_gift_cards_csv_import\u0028\u0029",
+            "name": "eeco_gift_cards_csv_import",
+            "summary": "Import\u0020gift\u0020cards\u0020via\u0020csv\u002Dfile",
+            "url": "namespaces/default.html#function_eeco_gift_cards_csv_import"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_My_Account",
+            "name": "Eeco_Gift_Cards_My_Account",
+            "summary": "",
+            "url": "classes/Eeco-Gift-Cards-My-Account.html"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_My_Account\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "bind\u0020actions",
+            "url": "classes/Eeco-Gift-Cards-My-Account.html#method___construct"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_My_Account\u003A\u003Aquery_vars\u0028\u0029",
+            "name": "query_vars",
+            "summary": "Add\u0020gift\u0020cards\u0020page\u0020to\u0020to\u0020woocommerce\u0020query\u0020vars",
+            "url": "classes/Eeco-Gift-Cards-My-Account.html#method_query_vars"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_My_Account\u003A\u003Atitle\u0028\u0029",
+            "name": "title",
+            "summary": "Set\u0020the\u0020gift\u0020cards\u0020page\u0020title",
+            "url": "classes/Eeco-Gift-Cards-My-Account.html#method_title"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_My_Account\u003A\u003Atemplate\u0028\u0029",
+            "name": "template",
+            "summary": "Load\u0020the\u0020gift\u0020cards\u0020page\u0020template",
+            "url": "classes/Eeco-Gift-Cards-My-Account.html#method_template"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_My_Account\u003A\u003Aendpoints\u0028\u0029",
+            "name": "endpoints",
+            "summary": "Add\u0020the\u0020gift\u0020cards\u0020page\u0020to\u0020as\u0020a\u0020rewrite\u0020endpoint",
+            "url": "classes/Eeco-Gift-Cards-My-Account.html#method_endpoints"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_My_Account\u003A\u003Amenu_items\u0028\u0029",
+            "name": "menu_items",
+            "summary": "Add\u0020the\u0020gift\u0020cards\u0020page\u0020to\u0020woocommerce\u0020my\u0020account\u0020menu\u0020items",
+            "url": "classes/Eeco-Gift-Cards-My-Account.html#method_menu_items"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_My_Account\u003A\u003Aget_gift_cards\u0028\u0029",
+            "name": "get_gift_cards",
+            "summary": "Get\u0020the\u0020current\u0020users\u0020gift\u0020cards",
+            "url": "classes/Eeco-Gift-Cards-My-Account.html#method_get_gift_cards"
         },                {
             "fqsen": "\\Eeco_Gift_Card",
             "name": "Eeco_Gift_Card",
@@ -183,7 +218,7 @@ Search.appendIndex(
         },                {
             "fqsen": "\\Eeco_Gift_Card\u003A\u003Adelivered_on\u0028\u0029",
             "name": "delivered_on",
-            "summary": "set\u0020order\u0020delivery\u0020status",
+            "summary": "Get\u0020gift\u0020card\u0020delivery\u0020date",
             "url": "classes/Eeco-Gift-Card.html#method_delivered_on"
         },                {
             "fqsen": "\\Eeco_Gift_Card\u003A\u003Agenerate_pdf\u0028\u0029",
@@ -220,6 +255,56 @@ Search.appendIndex(
             "name": "__construct",
             "summary": "bind\u0020actions",
             "url": "classes/Eeco-Gift-Cards-Checkout.html#method___construct"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Aadd_to_cart\u0028\u0029",
+            "name": "add_to_cart",
+            "summary": "fetches\u0020the\u0020add\u0020to\u0020cart\u0020template",
+            "url": "classes/Eeco-Gift-Cards-Checkout.html#method_add_to_cart"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Afilter_cart_item_data\u0028\u0029",
+            "name": "filter_cart_item_data",
+            "summary": "add\u0020price\u0020to\u0020cart\u0020item",
+            "url": "classes/Eeco-Gift-Cards-Checkout.html#method_filter_cart_item_data"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Acart_item_price\u0028\u0029",
+            "name": "cart_item_price",
+            "summary": "set\u0020the\u0020correct\u0020price\u0020on\u0020mini\u0020cart",
+            "url": "classes/Eeco-Gift-Cards-Checkout.html#method_cart_item_price"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Aset_price\u0028\u0029",
+            "name": "set_price",
+            "summary": "set\u0020gift\u0020card\u0020price\u0020before\u0020calculating\u0020totals",
+            "url": "classes/Eeco-Gift-Cards-Checkout.html#method_set_price"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Anew_order\u0028\u0029",
+            "name": "new_order",
+            "summary": "checks\u0020the\u0020order\u0020for\u0020gift\u0020cards\u0020and\u0020generates\u0020them",
+            "url": "classes/Eeco-Gift-Cards-Checkout.html#method_new_order"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Acreate_gift_card\u0028\u0029",
+            "name": "create_gift_card",
+            "summary": "create\u0020new\u0020gift\u0020card\u0020and\u0020save\u0020it\u0020to\u0020database",
+            "url": "classes/Eeco-Gift-Cards-Checkout.html#method_create_gift_card"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Agenerate_gift_card_id\u0028\u0029",
+            "name": "generate_gift_card_id",
+            "summary": "generate\u0020gift\u0020card\u0020id",
+            "url": "classes/Eeco-Gift-Cards-Checkout.html#method_generate_gift_card_id"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Aset_custom_cart_data\u0028\u0029",
+            "name": "set_custom_cart_data",
+            "summary": "set\u0020custom\u0020data\u0020to\u0020cart\u0020item\u0020meta",
+            "url": "classes/Eeco-Gift-Cards-Checkout.html#method_set_custom_cart_data"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Aadd_order_item_meta\u0028\u0029",
+            "name": "add_order_item_meta",
+            "summary": "add\u0020meta\u0020for\u0020order\u0020items",
+            "url": "classes/Eeco-Gift-Cards-Checkout.html#method_add_order_item_meta"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Aformat_meta_data\u0028\u0029",
+            "name": "format_meta_data",
+            "summary": "Format\u0020meta\u0020data\u0020of\u0020order\u0020line\u0020items",
+            "url": "classes/Eeco-Gift-Cards-Checkout.html#method_format_meta_data"
         },                {
             "fqsen": "\\Eeco_Gift_Cards_Checkout\u003A\u003Afilter_coupon_message\u0028\u0029",
             "name": "filter_coupon_message",
@@ -266,65 +351,30 @@ Search.appendIndex(
             "summary": "bind\u0020actions",
             "url": "classes/Eeco-Gift-Cards-Main.html#method___construct"
         },                {
+            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Ainclude_files\u0028\u0029",
+            "name": "include_files",
+            "summary": "Include\u0020all\u0020of\u0020the\u0020needed\u0020files",
+            "url": "classes/Eeco-Gift-Cards-Main.html#method_include_files"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Aupdate_db\u0028\u0029",
+            "name": "update_db",
+            "summary": "update\u0020the\u0020db",
+            "url": "classes/Eeco-Gift-Cards-Main.html#method_update_db"
+        },                {
             "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Ainit\u0028\u0029",
             "name": "init",
             "summary": "initialize",
             "url": "classes/Eeco-Gift-Cards-Main.html#method_init"
         },                {
-            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Aadd_to_cart\u0028\u0029",
-            "name": "add_to_cart",
-            "summary": "fetches\u0020the\u0020add\u0020to\u0020cart\u0020template",
-            "url": "classes/Eeco-Gift-Cards-Main.html#method_add_to_cart"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Afilter_cart_item_data\u0028\u0029",
-            "name": "filter_cart_item_data",
-            "summary": "add\u0020price\u0020to\u0020cart\u0020item",
-            "url": "classes/Eeco-Gift-Cards-Main.html#method_filter_cart_item_data"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Acart_item_price\u0028\u0029",
-            "name": "cart_item_price",
-            "summary": "set\u0020the\u0020correct\u0020price\u0020on\u0020mini\u0020cart",
-            "url": "classes/Eeco-Gift-Cards-Main.html#method_cart_item_price"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Aset_price\u0028\u0029",
-            "name": "set_price",
-            "summary": "set\u0020gift\u0020card\u0020price\u0020before\u0020calculating\u0020totals",
-            "url": "classes/Eeco-Gift-Cards-Main.html#method_set_price"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Anew_order\u0028\u0029",
-            "name": "new_order",
-            "summary": "checks\u0020the\u0020order\u0020for\u0020gift\u0020cards\u0020and\u0020generates\u0020them",
-            "url": "classes/Eeco-Gift-Cards-Main.html#method_new_order"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Acreate_gift_card\u0028\u0029",
-            "name": "create_gift_card",
-            "summary": "create\u0020new\u0020gift\u0020card\u0020and\u0020save\u0020it\u0020to\u0020database",
-            "url": "classes/Eeco-Gift-Cards-Main.html#method_create_gift_card"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Agenerate_gift_card_id\u0028\u0029",
-            "name": "generate_gift_card_id",
-            "summary": "generate\u0020gift\u0020card\u0020id",
-            "url": "classes/Eeco-Gift-Cards-Main.html#method_generate_gift_card_id"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Aset_custom_cart_data\u0028\u0029",
-            "name": "set_custom_cart_data",
-            "summary": "set\u0020custom\u0020data\u0020to\u0020cart\u0020item\u0020meta",
-            "url": "classes/Eeco-Gift-Cards-Main.html#method_set_custom_cart_data"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Aadd_order_item_meta\u0028\u0029",
-            "name": "add_order_item_meta",
-            "summary": "add\u0020meta\u0020for\u0020order\u0020items",
-            "url": "classes/Eeco-Gift-Cards-Main.html#method_add_order_item_meta"
-        },                {
-            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Aformat_meta_data\u0028\u0029",
-            "name": "format_meta_data",
-            "summary": "",
-            "url": "classes/Eeco-Gift-Cards-Main.html#method_format_meta_data"
-        },                {
             "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003Ahandle_request\u0028\u0029",
             "name": "handle_request",
             "summary": "Handle\u0020download\u0020pdf\u0020request",
             "url": "classes/Eeco-Gift-Cards-Main.html#method_handle_request"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Main\u003A\u003A\u0024files",
+            "name": "files",
+            "summary": "Classes\u0020to\u0020include",
+            "url": "classes/Eeco-Gift-Cards-Main.html#property_files"
         },                {
             "fqsen": "\\Eeco_Gift_Cards_Register_Content",
             "name": "Eeco_Gift_Cards_Register_Content",
@@ -371,15 +421,35 @@ Search.appendIndex(
             "summary": "adds\u0020custom\u0020menu\u0020items",
             "url": "classes/Eeco-Gift-Cards-Register-Content.html#method_custom_menu"
         },                {
+            "fqsen": "\\Eeco_Gift_Cards_Register_Content\u003A\u003Aimport_html\u0028\u0029",
+            "name": "import_html",
+            "summary": "",
+            "url": "classes/Eeco-Gift-Cards-Register-Content.html#method_import_html"
+        },                {
             "fqsen": "\\Eeco_Gift_Cards_Register_Content\u003A\u003Areports_html\u0028\u0029",
             "name": "reports_html",
-            "summary": "",
+            "summary": "html\u0020for\u0020usage\u0020reports",
             "url": "classes/Eeco-Gift-Cards-Register-Content.html#method_reports_html"
         },                {
             "fqsen": "\\Eeco_Gift_Cards_Register_Content\u003A\u003Asettings_html\u0028\u0029",
             "name": "settings_html",
             "summary": "insert\u0020the\u0020settings\u0020html",
             "url": "classes/Eeco-Gift-Cards-Register-Content.html#method_settings_html"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Register_Content\u003A\u003Ahelp_html\u0028\u0029",
+            "name": "help_html",
+            "summary": "Insert\u0020the\u0020help\u0020html",
+            "url": "classes/Eeco-Gift-Cards-Register-Content.html#method_help_html"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Register_Content\u003A\u003Aregister_post_statuses\u0028\u0029",
+            "name": "register_post_statuses",
+            "summary": "Register\u0020post\u0020status",
+            "url": "classes/Eeco-Gift-Cards-Register-Content.html#method_register_post_statuses"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Register_Content\u003A\u003Achange_publish_status\u0028\u0029",
+            "name": "change_publish_status",
+            "summary": "Change\u0020publish\u0020status\u0020to\u0020active",
+            "url": "classes/Eeco-Gift-Cards-Register-Content.html#method_change_publish_status"
         },                {
             "fqsen": "\\Eeco_Gift_Cards_Register_Content\u003A\u003A\u0024types",
             "name": "types",
@@ -448,7 +518,7 @@ Search.appendIndex(
         },                {
             "fqsen": "\\Eeco_Gift_Cards_Settings\u003A\u003Aonline_gift_card_column_data\u0028\u0029",
             "name": "online_gift_card_column_data",
-            "summary": "custom\u0020column\u0020data",
+            "summary": "online\u0020gift\u0020card\u0020custom\u0020column\u0020data",
             "url": "classes/Eeco-Gift-Cards-Settings.html#method_online_gift_card_column_data"
         },                {
             "fqsen": "\\Eeco_Gift_Cards_Settings\u003A\u003Aoffline_gift_card_column_data\u0028\u0029",
@@ -470,6 +540,11 @@ Search.appendIndex(
             "name": "load_assets",
             "summary": "load\u0020admin\u0020assets",
             "url": "classes/Eeco-Gift-Cards-Settings.html#method_load_assets"
+        },                {
+            "fqsen": "\\Eeco_Gift_Cards_Settings\u003A\u003Aeeco_gift_cards_pointer_script\u0028\u0029",
+            "name": "eeco_gift_cards_pointer_script",
+            "summary": "Add\u0020pointer\u0020function\u0020and\u0020script",
+            "url": "classes/Eeco-Gift-Cards-Settings.html#method_eeco_gift_cards_pointer_script"
         },                {
             "fqsen": "\\Eeco_Gift_Cards_Settings\u003A\u003A\u0024meta_keys",
             "name": "meta_keys",
@@ -736,16 +811,6 @@ Search.appendIndex(
             "summary": "Generate\u0020gift\u0020card\u0020html\u0020using\u0020handlebars",
             "url": "namespaces/default.html#function_eeco_gift_cards_render_template"
         },                {
-            "fqsen": "\\eeco_gift_cards_attachments\u0028\u0029",
-            "name": "eeco_gift_cards_attachments",
-            "summary": "Create\u0020attachments\u0020for\u0020the\u0020gift\u0020card\u0020email",
-            "url": "namespaces/default.html#function_eeco_gift_cards_attachments"
-        },                {
-            "fqsen": "\\eeco_gift_cards_register_emails\u0028\u0029",
-            "name": "eeco_gift_cards_register_emails",
-            "summary": "Set\u0020email\u0020classes\u0020for\u0020gift\u0020cards",
-            "url": "namespaces/default.html#function_eeco_gift_cards_register_emails"
-        },                {
             "fqsen": "\\get_eeco_gift_cards_for_order\u0028\u0029",
             "name": "get_eeco_gift_cards_for_order",
             "summary": "fetches\u0020the\u0020gift\u0020cards\u0020for\u0020given\u0020order\ncan\u0020be\u0020filtered\u0020by\u0020gift\u0020card\u0020type",
@@ -766,6 +831,41 @@ Search.appendIndex(
             "summary": "add\u0020gift\u0020card\u0020transaction",
             "url": "namespaces/default.html#function_eeco_gift_cards_create_transaction"
         },                {
+            "fqsen": "\\eeco_gif_cards_template_root\u0028\u0029",
+            "name": "eeco_gif_cards_template_root",
+            "summary": "get\u0020gift\u0020cards\u0020tempalate\u0020root",
+            "url": "namespaces/default.html#function_eeco_gif_cards_template_root"
+        },                {
+            "fqsen": "\\eeco_gift_cards_format_date\u0028\u0029",
+            "name": "eeco_gift_cards_format_date",
+            "summary": "format\u0020the\u0020given\u0020date",
+            "url": "namespaces/default.html#function_eeco_gift_cards_format_date"
+        },                {
+            "fqsen": "\\eeco_gift_cards_create_exipration_date\u0028\u0029",
+            "name": "eeco_gift_cards_create_exipration_date",
+            "summary": "generates\u0020the\u0020end\u0020date\u0020for\u0020gift\u0020card\u0020validity",
+            "url": "namespaces/default.html#function_eeco_gift_cards_create_exipration_date"
+        },                {
+            "fqsen": "\\eeco_gift_cards_download_file\u0028\u0029",
+            "name": "eeco_gift_cards_download_file",
+            "summary": "Download\u0020and\u0020delete\u0020file\u0020from\u0020the\u0020server",
+            "url": "namespaces/default.html#function_eeco_gift_cards_download_file"
+        },                {
+            "fqsen": "\\eeco_gift_cards_format_price\u0028\u0029",
+            "name": "eeco_gift_cards_format_price",
+            "summary": "Format\u0020a\u0020price\u0020using\u0020woocommerce\u0020wp\u0020and\u0020woocommerce\u0020options",
+            "url": "namespaces/default.html#function_eeco_gift_cards_format_price"
+        },                {
+            "fqsen": "\\eeco_gift_cards_attachments\u0028\u0029",
+            "name": "eeco_gift_cards_attachments",
+            "summary": "Create\u0020attachments\u0020for\u0020the\u0020gift\u0020card\u0020email",
+            "url": "namespaces/default.html#function_eeco_gift_cards_attachments"
+        },                {
+            "fqsen": "\\eeco_gift_cards_register_emails\u0028\u0029",
+            "name": "eeco_gift_cards_register_emails",
+            "summary": "Set\u0020email\u0020classes\u0020for\u0020gift\u0020cards",
+            "url": "namespaces/default.html#function_eeco_gift_cards_register_emails"
+        },                {
             "fqsen": "\\eeco_gift_cards_query\u0028\u0029",
             "name": "eeco_gift_cards_query",
             "summary": "alter\u0020gift\u0020cards\u0020query\u0020when\u0020querying\u0020by\u0020post\u0020id",
@@ -781,16 +881,6 @@ Search.appendIndex(
             "summary": "toggle\u0020gift\u0020card\u0020active\u0020status",
             "url": "namespaces/default.html#function_eeco_gift_cards_toggle_status"
         },                {
-            "fqsen": "\\eeco_gif_cards_template_root\u0028\u0029",
-            "name": "eeco_gif_cards_template_root",
-            "summary": "get\u0020gift\u0020cards\u0020tempalate\u0020root",
-            "url": "namespaces/default.html#function_eeco_gif_cards_template_root"
-        },                {
-            "fqsen": "\\eeco_gift_cards_format_date\u0028\u0029",
-            "name": "eeco_gift_cards_format_date",
-            "summary": "format\u0020the\u0020given\u0020date",
-            "url": "namespaces/default.html#function_eeco_gift_cards_format_date"
-        },                {
             "fqsen": "\\eeco_gift_cards_deliver_gift_card\u0028\u0029",
             "name": "eeco_gift_cards_deliver_gift_card",
             "summary": "deliver\u0020the\u0020scheduled\u0020gift\u0020card",
@@ -801,15 +891,10 @@ Search.appendIndex(
             "summary": "add\u0020email\u0020actions",
             "url": "namespaces/default.html#function_eeco_gift_cards_email_actions"
         },                {
-            "fqsen": "\\eeco_gift_cards_create_exipration_date\u0028\u0029",
-            "name": "eeco_gift_cards_create_exipration_date",
-            "summary": "generates\u0020the\u0020end\u0020date\u0020for\u0020gift\u0020card\u0020validity",
-            "url": "namespaces/default.html#function_eeco_gift_cards_create_exipration_date"
-        },                {
-            "fqsen": "\\eeco_gift_cards_download_file\u0028\u0029",
-            "name": "eeco_gift_cards_download_file",
-            "summary": "Download\u0020and\u0020delete\u0020file\u0020from\u0020the\u0020server",
-            "url": "namespaces/default.html#function_eeco_gift_cards_download_file"
+            "fqsen": "\\eeco_gift_cards_check_for_expired\u0028\u0029",
+            "name": "eeco_gift_cards_check_for_expired",
+            "summary": "Check\u0020for\u0020expired\u0020gift\u0020cards\u0020and\u0020update\u0020their\u0020status",
+            "url": "namespaces/default.html#function_eeco_gift_cards_check_for_expired"
         },                {
             "fqsen": "\\WC_Product_Offline_Gift_Card",
             "name": "WC_Product_Offline_Gift_Card",

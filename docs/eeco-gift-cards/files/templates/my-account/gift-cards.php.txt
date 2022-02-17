@@ -1,0 +1,56 @@
+<?php if(!empty($online_gift_cards) && !empty($offline_gift_cards)): ?>
+<div class="eeco-gc-tab">
+  <button class="eeco-gc-links active" data-tab="online_gift_card"><?php _e('Online gift cards', 'eeco-gift-cards') ?></button>
+  <button class="eeco-gc-links" data-tab="offline_gift_card"><?php _e('Offline gift cards', 'eeco-gift-cards') ?></button>
+</div>
+<?php elseif(!empty($online_gift_cards) || !empty($offline_gift_cards)): ?>
+  <h2><?php echo empty($online_gift_cards) ? __('Offline gift cards', 'eeco-gift-cards') : __('Online gift cards', 'eeco-gift-cards') ?></h2>
+<?php else: ?>
+  <h2><?php _e('No gift cards purchased', 'eeco-gift-cards') ?></h2>
+<?php endif; ?>
+<div class="eeco-gc-tabs">
+    <div id="online_gift_card" class="eeco-gc-content" style="<?php echo !empty($online_gift_cards) ? 'display:block' : 'display:hidden'?>">
+      <table class="shop_table shop_table_responsive">
+        <thead>
+          <tr>
+            <th><?php _e('Gift card number', 'eeco-gift-cards') ?></th>
+            <th><?php _e('Value used', 'eeco-gift-cards') ?></th>
+            <th><?php _e('Expiration date', 'eeco-gift-cards') ?></th>
+            <th><?php _e('Purchased', 'eeco-gift-cards') ?></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach($online_gift_cards as $gift_card): ?>
+              <tr>
+                <td data-title="<?php _e('Gift card number', 'eeco-gift-cards') ?>"><?php echo $gift_card->get_code()?></td>
+                <td data-title="<?php _e('Value used', 'eeco-gift-cards') ?>"><?php echo eeco_gift_cards_format_price($gift_card->get_used_amount(), false).'/'.eeco_gift_cards_format_price($gift_card->get_amount())?></td>
+                <td data-title="<?php _e('Expiration date', 'eeco-gift-cards') ?>" class="<?php echo $gift_card->has_expired() ? 'eeco-gc-expired' : 'eeco-gc-active'?>"><?php echo $gift_card->get_date(true)?></td>
+                <td data-title="<?php _e('Purchased', 'eeco-gift-cards') ?>"><?php echo get_the_date(get_option('date_format'), $gift_card->get_id()) ?></td>
+              </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+    <div id="offline_gift_card" class="eeco-gc-content" style="<?php echo empty($online_gift_cards) && !empty($offline_gift_cards) ? 'display:block' : 'display:hidden'?>">
+      <table class="shop_table shop_table_responsive">
+        <thead>
+          <tr>
+            <th><?php _e('Gift card number', 'eeco-gift-cards') ?></th>
+            <th><?php _e('Value', 'eeco-gift-cards') ?></th>
+            <th><?php _e('Expiration date', 'eeco-gift-cards') ?></th>
+            <th><?php _e('Purchased', 'eeco-gift-cards') ?></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach($offline_gift_cards as $gift_card): ?>
+              <tr>
+                <td data-title="<?php _e('Gift card number', 'eeco-gift-cards') ?>"><?php echo $gift_card->get_code()?></td>
+                <td data-title="<?php _e('Value', 'eeco-gift-cards') ?>"><?php echo eeco_gift_cards_format_price($gift_card->get_amount()) ?></td>
+                <td data-title="<?php _e('Expiration date', 'eeco-gift-cards') ?>" class="<?php echo $gift_card->has_expired() ? 'eeco-gc-expired' : 'eeco-gc-active'?>"><?php echo $gift_card->get_date(true)?></td>
+                <td data-title="<?php _e('Purchased', 'eeco-gift-cards') ?>"><?php echo get_the_date(get_option('date_format'), $gift_card->get_id()) ?></td>
+              </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+</div>

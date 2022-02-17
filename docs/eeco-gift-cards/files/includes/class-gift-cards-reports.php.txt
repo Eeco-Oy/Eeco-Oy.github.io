@@ -1,0 +1,281 @@
+<?php 
+
+defined( 'ABSPATH' ) || exit;
+
+class Eeco_Gift_Cards_Reports {
+
+    public function __construct(){
+        $this->handle_csv();
+    }
+
+    /**
+     * generate reports csv if necessary
+     */
+    private function handle_csv(){
+        if(isset($_REQUEST['gift_card_csv'])){
+            $this->set_header();
+
+            if($_REQUEST['gift_card_csv'] == 'usage'){
+                $limit = isset($_GET['posts_per_page']) ? $_GET['posts_per_page'] : 10;
+
+                $offset = isset($_GET['paged']) ? ($_GET['paged'] == 1 ? 0 : ($_GET['paged'] - 1) * $limit) : 0;
+
+                $order_by = !empty($_GET['orderby']) ? $_GET['orderby'] : 'ID';
+
+                $order = !empty($_GET['order']) ? $_GET['order'] :  'DESC';
+
+                $data = self::get_transactions( $offset, $limit, $order, $order_by);
+
+                $out = implode(',', array(
+                    _x('ID', 'CSV column', 'eeco-gift-cards'),
+                    _x('Order id', 'CSV column', 'eeco-gift-cards'),
+                    _x('Gift card code', 'CSV column', 'eeco-gift-cards'),
+                    _x('Validation number', 'CSV column', 'eeco-gift-cards'),
+                    _x('Value used', 'CSV column', 'eeco-gift-cards'),
+                    _x('Tax', 'CSV column', 'eeco-gift-cards'),
+                    _x('Date', 'CSV column', 'eeco-gift-cards'),
+                    _x('Gift card number', 'CSV column', 'eeco-gift-cards'),
+                )) . PHP_EOL;
+
+                foreach ($data['items'] as $value) {
+                    $out .= implode(",", (array)$value) . PHP_EOL;
+                }
+                
+                echo $out;
+            }
+            else {
+                $data = self::get_reports();
+
+                $translations = array(
+                    'total_gift_cards' => __('Total gift cards sold', 'eeco-gift-cards'),
+                    'total_value_sold' => __('Total value sold', 'eeco-gift-cards'),
+                    'average_value_sold' => __('Average value sold', 'eeco-gift-cards'),
+                    'total_value_redeemed' => __('Value used', 'eeco-gift-cards'),
+                    'total_value_expired' => __('Total value expired', 'eeco-gift-cards'),
+                    'value_in_circulation' => __('Value in Circulation', 'eeco-gift-cards') ,
+                    'gift_cards_in_circulation' => __('Gift Cards in Circulation', 'eeco-gift-cards')
+                );
+
+                $out = implode(',', array(
+                    '',
+                    __('Online gift card', 'eeco-gift-cards'),
+                    __('Offline gift card', 'eeco-gift-cards'),
+                    __('Total', 'eeco-gift-cards')
+                )) . PHP_EOL;
+
+                foreach ($data as $key => $value) {
+                    $out .= $translations[$key].','.implode(",", (array)$value) . PHP_EOL;
+                }
+
+                echo $out;
+            }
+
+            exit;
+        }
+    }
+
+    /**
+     * returns the general report data
+     * 
+     * @return array Reports
+     */
+    public static function get_reports(){
+        global $wpdb;
+
+        $reports = array(
+            'total_gift_cards' => array(),
+            'total_value_sold' => array(),
+            'average_value_sold' => array(),
+            'total_value_redeemed' => array(),
+            'total_value_expired' => array(),
+            'value_in_circulation' => array(),
+            'gift_cards_in_circulation' => array()
+        );
+
+        //total gift cards
+        $count_offline = wp_count_posts('offline_gift_card');
+        $total_offline = $count_offline->publish + $count_offline->expired;
+
+        $count_online = wp_count_posts('online_gift_card');
+        $total_online = $count_online->publish + $count_online->expired;
+
+        $reports['total_gift_cards']['online'] = $total_online;
+        $reports['total_gift_cards']['offline'] = $total_offline;
+        $reports['total_gift_cards']['total'] = $total_online + $total_offline;
+
+        //total value
+        $query = "SELECT sum(pm.meta_value) as total_value, sum(pm2.meta_value) as redeemed
+            FROM {$wpdb->posts} p 
+            LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
+            LEFT JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id
+            WHERE p.post_type = %s 
+            AND pm.meta_key = '_gift_card_amount'
+            AND pm2.meta_key = '_gift_card_used'";
+
+        $online_totals = $wpdb->get_row(
+            $wpdb->prepare($query, 'online_gift_card')
+        );
+
+        $offline_totals = $wpdb->get_row(
+            $wpdb->prepare($query, 'offline_gift_card')
+        );
+
+        $online_total_value = $online_totals->total_value ? $online_totals->total_value : 0;
+        $offline_total_value = $offline_totals->total_value ? $offline_totals->total_value : 0;
+
+        $reports['total_value_sold']['online'] = $online_total_value;
+        $reports['total_value_sold']['offline'] = $offline_total_value;
+        $reports['total_value_sold']['total'] = $online_total_value + $offline_total_value;
+
+        $total_value = $online_totals->total_value + $offline_totals->total_value;
+        $total = $total_online + $total_offline;
+
+        $online_average_value = $online_total_value && $total_online ? $online_totals->total_value / $total_online : 0;
+        $offline_average_value = $offline_totals && $total_offline ? $offline_totals->total_value / $total_offline : 0;
+
+        $reports['average_value_sold']['online'] = $online_average_value;
+        $reports['average_value_sold']['offline'] = $offline_average_value;
+        $reports['average_value_sold']['total'] = $total_value && $total ? $total_value / $total : 0;
+
+        $reports['total_value_redeemed']['online'] = $online_totals->redeemed;
+        $reports['total_value_redeemed']['offline'] = '-';
+        $reports['total_value_redeemed']['total'] = $online_totals->redeemed;
+
+
+        //expired
+        $query = "SELECT sum(pm2.meta_value) as value, count(p.ID) as total, sum(pm3.meta_value) as redeemed
+            FROM {$wpdb->posts} p 
+            LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+            LEFT JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id
+            LEFT JOIN {$wpdb->postmeta} pm3 ON p.ID = pm3.post_id
+            WHERE pm.meta_key = '_gift_card_expires'
+            AND pm.meta_value < %s
+            AND p.post_type = %s
+            AND pm2.meta_key = '_gift_card_amount'
+            AND pm3.meta_key = '_gift_card_used'";
+
+        $online_expired = $wpdb->get_row(
+            $wpdb->prepare($query, date('Y-m-d'), 'online_gift_card')
+        );
+
+        $reports['total_value_expired']['online'] = $online_expired->value - $online_expired->redeemed;
+        $reports['total_value_expired']['offline'] = '-';
+        $reports['total_value_expired']['total'] = $online_expired->value - $online_expired->redeemed;
+        //value in circulation
+        // inactive
+        $query = "SELECT sum(pm.meta_value) as value, count(p.ID) as total, sum(pm3.meta_value) as redeemed
+            FROM {$wpdb->posts} p 
+            LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+            LEFT JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id
+            LEFT JOIN {$wpdb->postmeta} pm3 ON p.ID = pm3.post_id
+            WHERE p.post_type = %s
+            AND p.post_status = 'publish'
+            AND pm.meta_key = '_gift_card_amount'
+            AND pm2.meta_key = '_gift_card_is_active'
+            AND pm2.meta_value = 1
+            AND pm3.meta_key = '_gift_card_used'";
+
+        $online_active = $wpdb->get_row(
+            $wpdb->prepare($query, 'online_gift_card')
+        );
+
+        $online_circulation = $online_active->value - $online_active->redeemed;
+
+        $reports['value_in_circulation']['online'] = $online_circulation;
+        $reports['value_in_circulation']['offline'] = '-';
+        $reports['value_in_circulation']['total'] = $online_circulation;
+
+        //gift cards in circulation
+        $query = "SELECT count(p.ID) as total
+            FROM {$wpdb->posts} p 
+            LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_gift_card_expires'
+            LEFT JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id AND pm2.meta_key = '_gift_card_is_active'
+            WHERE pm.meta_value >= %s
+            AND p.post_type = %s
+            AND pm2.meta_value = 1
+            AND NOT EXISTS (
+                SELECT * FROM {$wpdb->postmeta} pm2 
+                LEFT JOIN {$wpdb->postmeta} pm3 ON pm3.post_id = pm2.post_id AND pm3.meta_key = '_gift_card_amount'
+                WHERE pm2.meta_key = '_gift_card_used' 
+                AND pm2.post_id = p.ID
+                AND pm3.meta_value - pm2.meta_value = 0
+            )";
+        $online_circulation_total = $wpdb->get_row(
+            $wpdb->prepare($query, date('Y-m-d'), 'online_gift_card')
+        );
+        $offline_circulation_total = $wpdb->get_row(
+            $wpdb->prepare($query, date('Y-m-d'), 'offline_gift_card')
+        );
+        
+        $reports['gift_cards_in_circulation']['online'] = $online_circulation_total->total;
+        $reports['gift_cards_in_circulation']['offline'] = $offline_circulation_total->total;
+        $reports['gift_cards_in_circulation']['total'] = $online_circulation_total->total + $offline_circulation_total->total;
+
+        return $reports;
+    }
+
+    /**
+     * get data for reports table
+     * 
+     * @param int $offset The offset
+     * @param int $limit Item limit
+     * @param string $order Which order to sort
+     * @param string $order_by Order by item
+     * @return array Transactions
+     */
+    public static function get_transactions($offset, $limit, $order, $order_by){
+        global $wpdb;
+        $results = array();
+
+        $table_name = $wpdb->prefix . 'gift_card_transaction';
+
+        $total = $wpdb->get_var( "SELECT COUNT(*) FROM $table_name" );
+
+        $items = array();
+
+        $query = "SELECT gct.*, p.post_title FROM $table_name gct ";
+        $query .= "LEFT JOIN {$wpdb->posts} p ON gct.gift_card_id = p.ID ";
+
+        if(isset($_GET['start_date']) && $_GET['start_date']){
+            $query .= "WHERE gct.date >= %s ";
+            $items[] = $_GET['start_date'].' 00:00:00';
+
+            if(isset($_GET['end_date']) && $_GET['end_date']){
+                $query .= "AND gct.date <= %s ";
+                $items[] = $_GET['end_date'].' 23:59:59';
+            }
+        }
+        else if(isset($_GET['end_date']) && $_GET['end_date']){
+            $query .= "WHERE gct.date <= %s ";
+            $items[] = $_GET['end_date'].' 23:59:59';
+        }
+
+        $query .= "ORDER BY {$order_by} {$order} ";
+        $query .= "LIMIT %d, %d";
+
+        $items[] = $offset;
+        $items[] = $limit;
+
+        $results = $wpdb->get_results($wpdb->prepare(
+            $query,
+            $items
+        ));
+
+        return array('items' => $results, 'total' => $total);
+    }
+
+    /**
+     * set header for downloading the csv
+     */
+    private function set_header(){
+        header("Pragma: public");
+        header("Expires: 0");
+        header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+        header("Cache-Control: private", false);
+        header("Content-Type: application/octet-stream");
+        header("Content-Disposition: attachment; filename=\"report.csv\";" );
+        header("Content-Transfer-Encoding: binary");
+    }
+}
+
+new Eeco_Gift_Cards_Reports();

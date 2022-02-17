@@ -1,0 +1,6 @@
+<form id="gift_cards" action="" method="post">
+    <div>
+        <input type="text" name="gift_card_code" placeholder="<?php _e('Gift card code', 'eeco-gift-cards') ?>">
+    </div>
+    <button type="submit" name="apply_gift_card"><?php _e('Apply gift card', 'eeco-gift-cards') ?></button>
+</form>

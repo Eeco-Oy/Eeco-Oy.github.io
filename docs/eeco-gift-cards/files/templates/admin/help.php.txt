@@ -1,0 +1,29 @@
+<div class="wrap">
+    <h1><?php echo _x('Gift Cards Help', 'Page title', 'eeco-gift-cards'); ?></h1>
+
+    <div class="metabox-holder">
+        <div class="postbox-container left">
+            <div class="postbox">
+                <div class="postbox-header">
+                    <h2 class="hndle"><?php echo _x('FAQ', 'Help page', 'eeco-gift-cards'); ?></h2>
+                </div>
+                <div class="inside">
+                    <p><strong><?php echo _x('Where do I find my lisence key?', 'Admin help page', 'eeco-gift-cards'); ?></strong></p>
+                    <p><?php printf('<a href="https://eeco.fi/oma-tili/" target="_blank" rel="noopener">%s</a>.', _x('Lisence key can be found from My Account Page at eeco.fi', 'Admin help page', 'eeco-gift-cards')); ?></p>
+                    <p><strong><?php echo _x('Where do I find plugin documentation?', 'Admin help page', 'eeco-gift-cards'); ?></strong></p>
+                    <p><?php printf('<a href="https://eeco.fi/tuote/woocommerce-lahjakortit/" target="_blank" rel="noopener">%s</a>.', _x('Plugin documentation can be found at eeco.fi', 'Admin help page', 'eeco-gift-cards')); ?></p>
+                </div>
+            </div>
+        </div>
+        <div class="postbox-container right">
+            <div class="postbox">
+                <div class="postbox-header">
+                    <h2 class="hndle"><?php echo _x('Help / Feedback', 'Help page', 'eeco-gift-cards'); ?></h2>
+                </div>
+                <div class="inside">
+                    <p><?php printf('%s', _x('First, check the <a href="https://eeco.fi/tuote/woocommerce-lahjakortit/" target="_blank" rel="noopener">Documentation</a>. If you still have questions or want to give feedback, send an email to <a href="mailto:tuki@eeco.fi" target="_blank" rel="noopener">support</a>.', 'Admin help page', 'eeco-gift-cards')); ?></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,66 @@
+<h1><?php _e('Import gift cards', 'eeco-gift-cards')?></h1>
+<ol>
+    <li><?php _e('Download the CSV template', 'eeco-gift-cards') ?></li>
+    <li><?php _e('Replace the placeholder values in the CSV template with your real data', 'eeco-gift-cards') ?></li>
+    <li><?php _e('Import the CSV file', 'eeco-gift-cards') ?></li>
+</ol>
+<table class="form-table">
+    <tbody>
+        <tr>
+            <th scope="row">
+                <label for=""><?php _e('Download the template', 'eeco-gift-cards') ?></label>
+            </th>
+            <td>
+                <i><?php _e('CSV file with placeholder values to be used as a template', 'eeco-gift-cards')?></i>
+                <p>
+                    <a href="?example_gift_card_csv=1"><?php _e('Download', 'eeco-gift-cards') ?></a>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">
+                <label for=""><?php _e('Import gift cards', 'eeco-gift-cards') ?></label>
+            </th>
+            <td>
+                <i><?php _e('Upload a CSV file', 'eeco-gift-cards')?></i>
+                <p>
+                    <input type="file" name="eeco_gift_cards" accept=".csv">
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">
+                <label for=""><?php _e('CSV separator', 'eeco-gift-cards') ?></label>
+            </th>
+            <td>
+                <i><?php _e('Character that separates the values. Defaults to comma', 'eeco-gift-cards')?></i>
+                <p>
+                    <input id="csv_separator" type="text" value=",">
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">
+                <label for=""><?php _e('Rows per batch', 'eeco-gift-cards') ?></label>
+            </th>
+            <td>
+                <i><?php _e('How many rows to process each batch. If import fails constantly consider a lower number', 'eeco-gift-cards')?></i>
+                <p>
+                    <input id="rows_per_iteration" type="number" value="100">
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">
+                <label for=""><?php _e('Import results', 'eeco-gift-cards') ?></label>
+            </th>
+            <td>
+                <button id="eeco_gift_cards_import" class="button button-primary" type="button"><?php _e('Start import', 'eeco-gift-cards') ?></button><br>
+                <i><?php _e('Results of the import will be printed below', 'eeco-gift-cards')?></i>
+                <p>
+                    <textarea id="eeco_gift_cards_import_results" rows="8" cols="60" readonly></textarea>
+                </p>
+            </td>
+        </tr>
+    </tbody>
+</table>

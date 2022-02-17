@@ -1,0 +1,14 @@
+<ul class="reports-menu">
+    <li><a href="<?php echo admin_url('admin.php?page=eeco-gift-cards')?>"><?php _e('Reports', 'eeco-gift-cards') ?></a></li>
+    <li>|</li>
+    <li><a href="#" class="active"><?php _e('Usage reports', 'eeco-gift-cards') ?></a></li>
+</ul>
+<div class="form-wrap gift-card-wrap" action="?page=eeco-gift-cards&tab=usage_reports">
+    <h2><?php _e('Usage reports', 'eeco-gift-cards') ?></h2>
+    <form method="get">
+        <input type="hidden" name="page" value="eeco-gift-cards">
+        <input type="hidden" name="tab" value="usage_reports">
+        <?php $table->search_box(__('Search', 'eeco-gift-cards'), 'gift_card_reports');  ?>
+        <?php $table->display(); ?>
+    </form>
+</div>

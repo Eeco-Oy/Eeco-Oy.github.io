@@ -1,0 +1,83 @@
+<ul class="reports-menu">
+    <li><a href="#" class="active"><?php _e('Reports', 'eeco-gift-cards') ?></a></li>
+    <li>|</li>
+    <li><a href="<?php echo admin_url('admin.php?page=eeco-gift-cards&tab=usage_reports')?>"><?php _e('Usage reports', 'eeco-gift-cards') ?></a></li>
+</ul>
+<div class="form-wrap gift-card-wrap">
+    <form method="get">
+        <div class="gift-card-selectors">
+            <input type="hidden" name="page" value="eeco-gift-cards">
+            <button type="submit" class="button" name="gift_card_csv" value="reports"><?php _e('Download csv', 'eeco-gift-cards') ?></button>
+        </div>
+        <div class="gift-card-reports-table">
+            <table cellspacing="0">
+                <thead>
+                    <tr>
+                        <th class="first-cell"></th>
+                        <th><?php _e('Online gift card', 'eeco-gift-cards') ?></th>
+                        <th><?php _e('Offline gift card', 'eeco-gift-cards') ?></th>
+                        <th class="total"><?php _e('Total', 'eeco-gift-cards') ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row">
+                            <?php _e('Total gift cards sold', 'eeco-gift-cards') ?>
+                        </th>
+                        <td><?php echo $reports['total_gift_cards']['online']?></td>
+                        <td><?php echo $reports['total_gift_cards']['offline']?></td>
+                        <td><?php echo $reports['total_gift_cards']['total']?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <?php _e('Total value sold', 'eeco-gift-cards') ?>
+                        </th>
+                        <td><?php echo eeco_gift_cards_format_price($reports['total_value_sold']['online']) ?></td>
+                        <td><?php echo eeco_gift_cards_format_price($reports['total_value_sold']['offline'])?></td>
+                        <td><?php echo eeco_gift_cards_format_price($reports['total_value_sold']['total'])?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <?php _e('Average value sold', 'eeco-gift-cards') ?>
+                        </th>
+                        <td><?php echo eeco_gift_cards_format_price($reports['average_value_sold']['online'])?></td>
+                        <td><?php echo eeco_gift_cards_format_price($reports['average_value_sold']['offline'])?></td>
+                        <td><?php echo eeco_gift_cards_format_price($reports['average_value_sold']['total'])?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <?php _e('Value used', 'eeco-gift-cards') ?>
+                        </th>
+                        <td><?php echo eeco_gift_cards_format_price($reports['total_value_redeemed']['online'])?></td>
+                        <td><?php echo $reports['total_value_redeemed']['offline']?></td>
+                        <td><?php echo eeco_gift_cards_format_price($reports['total_value_redeemed']['total'])?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <?php _e('Total value expired', 'eeco-gift-cards') ?>
+                        </th>
+                        <td><?php echo eeco_gift_cards_format_price($reports['total_value_expired']['online'])?></td>
+                        <td><?php echo $reports['total_value_expired']['offline']?></td>
+                        <td><?php echo eeco_gift_cards_format_price($reports['total_value_expired']['total'])?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <?php _e('Value in Circulation', 'eeco-gift-cards') ?>
+                        </th>
+                        <td><?php echo eeco_gift_cards_format_price($reports['value_in_circulation']['online'])?></td>
+                        <td><?php echo $reports['value_in_circulation']['offline']?></td>
+                        <td><?php echo eeco_gift_cards_format_price($reports['value_in_circulation']['total'])?></td>
+                    </tr>
+                    <tr>
+                        <th scope="row" class="circulation">
+                            <?php _e('Gift Cards in Circulation', 'eeco-gift-cards') ?>
+                        </th>
+                        <td><?php echo $reports['gift_cards_in_circulation']['online']?></td>
+                        <td><?php echo $reports['gift_cards_in_circulation']['offline']?></td>
+                        <td class="value-in-circulation"><?php echo $reports['gift_cards_in_circulation']['total']?></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </form>
+</div>

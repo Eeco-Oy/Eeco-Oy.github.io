@@ -1,0 +1,301 @@
+<?php 
+
+defined( 'ABSPATH' ) || exit;
+
+class Eeco_Gift_Cards_Register_Content {
+    /**
+     * gift card types
+     */
+    private $types = array();
+
+    /**
+     * binding actions
+    */
+    public function __construct(){
+        add_filter( 'product_type_selector', array($this, 'custom_types') );
+        add_filter( 'woocommerce_product_data_tabs', array($this, 'custom_tabs') );
+        add_action( 'admin_menu', array($this, 'custom_menu'));
+        add_filter( 'product_type_options', array($this, 'option_visibility'));
+        add_action( 'wp_enqueue_scripts', [$this, 'add_assets']);
+        add_filter( 'bulk_actions-edit-online_gift_card', '__return_empty_array', 10, 1 );
+        add_filter( 'bulk_actions-edit-offline_gift_card', '__return_empty_array', 10, 1 );
+        add_filter( 'views_edit-online_gift_card', [$this, 'change_publish_status'], 10, 1 );
+        add_filter( 'views_edit-offline_gift_card', [$this, 'change_publish_status'], 10, 1 );
+    }
+
+    /**
+     * add assets for client side
+     */
+    public function add_assets(){
+        if(is_product()){
+            $wp_scripts = wp_scripts();
+            wp_enqueue_style('product-page', plugins_url('/assets/css/product-page.css' , __DIR__ ), false, EECO_GIFT_CARDS_VERSION);
+            wp_enqueue_script( 'jquery-ui-datepicker' );
+            wp_enqueue_script( 'eeco-gift-cards-product', plugin_dir_url(__DIR__).'assets/js/product.js',  false, EECO_GIFT_CARDS_VERSION);
+            wp_enqueue_style( 'eeco-gift-cards-product-ui-css',
+                'https://ajax.googleapis.com/ajax/libs/jqueryui/' . $wp_scripts->registered['jquery-ui-core']->ver . '/themes/smoothness/jquery-ui.css', false, 
+                EECO_GIFT_CARDS_VERSION
+            );
+        }
+        else if(is_account_page()){
+            wp_enqueue_style('eeco-gift-cards-my-account', plugins_url('/assets/css/my-account.css' , __DIR__ ), false, EECO_GIFT_CARDS_VERSION);
+            wp_enqueue_script('eeco-gift-cards-my-account-script', plugin_dir_url(__DIR__).'assets/js/my-account.js',  false, EECO_GIFT_CARDS_VERSION);
+        }
+    }
+
+    /**
+     * enable setting gift cards as virtual products
+     * 
+     * @param array $options The options array
+     * @return array Edited options
+     */
+    public function option_visibility($options){
+
+        if(isset($options['virtual'])){
+            $options['virtual']['wrapper_class'] .= ' show_if_offline_gift_card show_if_online_gift_card';
+        }
+
+        return $options;
+    }
+
+    /**
+     * register everything for the offline gift card
+     */
+    public function register_offline_gift_card(){
+        $args = array(
+            'show_in_menu' => false,
+            'labels' => array(
+                'name' => __( 'Offline gift card', 'eeco-gift-cards' ),
+                'singular_name' => __( 'Offline gift card', 'eeco-gift-cards' ),
+                'search_items' => __('Search gift cards', 'eeco-gift-cards')
+            ),
+            'capabilities' => array(
+                'create_posts' => false
+            ),
+            'description' => __( 'List of offline gift cards', 'eeco-gift-cards' ),
+            'public' => true,
+            'exclude_from_search' => true,
+            'publicly_queryable' => false,
+            'has_archive' => false,
+        );
+
+        register_post_type('offline_gift_card', $args);
+
+        include_once plugin_dir_path( __FILE__ )."/products/class-offline-gift-card.php";
+
+        $this->types[] = array(
+            'type' => 'offline_gift_card',
+            'label' => __( 'Offline gift card', 'eeco-gift-cards' ),
+            'tab_class' => 'show_if_offline_gift_card',
+            'post_type' => 'offline_gift_card',
+        );
+    }
+
+    /**
+     * register everything for the online gift card
+     */
+    public function register_online_gift_card(){
+        $args = array(
+            'show_in_menu' => false,
+            'labels' => array(
+                'name' => __( 'Online gift card', 'eeco-gift-cards' ),
+                'singular_name' => __( 'Online gift card', 'eeco-gift-cards' ),
+                'search_items' => __('Search gift cards', 'eeco-gift-cards')
+            ),
+            'capabilities' => array(
+                'create_posts' => false,
+            ),
+            'description' => __( 'List of Online gift cards', 'eeco-gift-cards' ),
+            'public' => true,
+            'exclude_from_search' => true,
+            'publicly_queryable' => false,
+            'has_archive' => false,
+        );
+
+        register_post_type('online_gift_card', $args);
+
+        include_once plugin_dir_path( __FILE__ )."/products/class-online-gift-card.php";
+
+        $this->types[] = array(
+            'type' => 'online_gift_card',
+            'label' => __( 'Online gift card', 'eeco-gift-cards' ),
+            'tab_class' => 'show_if_online_gift_card',
+            'post_type' => 'online_gift_card',
+        );
+    }
+
+    /**
+     * adds product types to existing array
+     * 
+     * @param array $types The existing types
+     * @return array $types The types
+     */
+    public function custom_types($types){
+        foreach ($this->types as $type) {
+            $types[$type['type']] = $type['label'];
+        }
+
+        return $types;
+    }
+
+    /**
+     * adds custom tabs for product page
+     * 
+     * @param array $tabs The tabs
+     * @return array The tabs
+     */
+    public function custom_tabs($tabs){
+        foreach ($this->types as $type) {
+            $tabs['inventory']['class'][] = $type['tab_class'];
+        }
+
+        return $tabs;
+    }
+
+    /**
+     * adds custom menu items
+     */
+    public function custom_menu(){
+        add_menu_page(
+            __( 'Gift Cards', 'eeco-gift-cards' ),
+            __( 'Gift Cards', 'eeco-gift-cards' ),
+            'manage_options',
+            'eeco-gift-cards',
+            array($this, 'reports_html'),
+            'dashicons-tickets-alt'
+        );
+
+        add_submenu_page( 
+            'eeco-gift-cards', 
+            __('Reports', 'eeco-gift-cards'), 
+            __('Reports', 'eeco-gift-cards'), 
+            'manage_options', 
+            'eeco-gift-cards', 
+            array($this, 'reports_html') 
+        );
+
+        add_submenu_page( 
+            'eeco-gift-cards', 
+            __('Import', 'eeco-gift-cards'), 
+            __('Import', 'eeco-gift-cards'), 
+            'manage_options', 
+            'eeco_gift_cards_import', 
+            array($this, 'import_html') 
+        );
+
+        add_submenu_page( 
+            'eeco-gift-cards', 
+            __('Gift card settings', 'eeco-gift-cards'), 
+            __('Gift card settings', 'eeco-gift-cards'), 
+            'manage_options', 
+            'eeco_gift_cards_settings', 
+            array($this, 'settings_html') 
+        ); 
+        add_submenu_page( 
+            'eeco-gift-cards', 
+            __('Online gift card', 'eeco-gift-cards'), 
+            __('Online gift card', 'eeco-gift-cards'), 
+            'manage_options', 
+            'edit.php?post_type=online_gift_card'
+        ); 
+        add_submenu_page( 
+            'eeco-gift-cards', 
+            __('Offline gift card', 'eeco-gift-cards'), 
+            __('Offline gift card', 'eeco-gift-cards'), 
+            'manage_options', 
+            'edit.php?post_type=offline_gift_card'
+        );
+
+        add_submenu_page( 
+            'eeco-gift-cards', 
+            __('Help', 'eeco-gift-cards'), 
+            __('Help', 'eeco-gift-cards'), 
+            'manage_options', 
+            'eeco_gift_cards_help', 
+            array($this, 'help_html') 
+        );
+
+        foreach ($this->types as $type) {
+            add_submenu_page( 
+                'woocommerce',
+                $type['label'], 
+                $type['label'], 
+                'manage_options', 
+                'edit.php?post_type='.$type['post_type'] 
+            ); 
+        }
+    }
+
+    public function import_html(){
+        include_once plugin_dir_path( __DIR__ )."templates/admin/import.php";
+    }
+
+    /**
+     * html for usage reports
+     */
+    public function reports_html(){
+        if(isset($_GET['tab']) && $_GET['tab'] == 'usage_reports' ){
+            $table = new Eeco_Gift_Cards_Reports_Table();
+            $table->prepare_items();
+    
+            $args = array(
+                'table' => $table
+            );
+    
+            extract( $args, EXTR_SKIP );
+    
+            include_once plugin_dir_path( __DIR__ )."templates/admin/usage-reports.php";
+        }
+        else {
+            $args = array(
+                'reports' => Eeco_Gift_Cards_Reports::get_reports()
+            );
+    
+            extract( $args, EXTR_SKIP );
+
+            include_once plugin_dir_path( __DIR__ )."templates/admin/reports.php";
+        }
+    }
+
+    /**
+     * insert the settings html
+     */
+    public function settings_html(){
+        include_once plugin_dir_path( __DIR__ )."templates/admin/settings.php";
+    }
+
+    /**
+     * Insert the help html
+     */
+    public function help_html() {
+        include_once plugin_dir_path( __DIR__ ).'templates/admin/help.php';
+    }
+
+    /** 
+     * Register post status
+     */
+    public function register_post_statuses() {
+        register_post_status( 'expired', array(
+            'label'                     => _x( 'Expired ', 'Gift Card status', 'eeco-gift-cards' ),
+            'public'                    => true,
+            'label_count'               => _n_noop( 'Expired <span class="count">(%s)</span>', 'Expired <span class="count">(%s)</span>', 'eeco-gift-cards' ),
+            'post_type'                 => array( 'online_gift_card', 'offline_gift_card' ),    
+            'show_in_admin_all_list'    => true,
+            'show_in_admin_status_list' => true
+        ) );
+    }
+
+    /**
+     * Change publish status to active
+     * 
+     * @param array $views An array of available list table views.
+     * @return array 
+     */
+    public function change_publish_status($views) {
+        if( isset( $views['publish'] ) ) {
+            $views['publish'] = str_replace( 'Published ', _x('Active ', 'post status', 'eeco-gift-cards'), $views['publish'] );
+            $views['publish'] = str_replace( 'Julkaistut ', _x('Active ', 'post status', 'eeco-gift-cards'), $views['publish'] );
+        }
+        return $views;
+    }
+}

@@ -1,0 +1,514 @@
+<?php
+
+defined( 'ABSPATH' ) || exit;
+
+class Eeco_Gift_Cards_Settings{
+    /**
+     * meta keys
+     */
+    private $meta_keys = array(
+        '_gift_card_expires_value',
+        '_gift_card_expires_unit',
+        '_gift_card_min_price',
+        '_gift_card_rec_price',
+        '_gift_card_max_price',
+        '_gift_card_enable_custom_message',
+        '_gift_card_enable_scheduled_delivery'
+    );
+
+    /**
+     * settings keys
+     */
+    protected static $settings = array(
+        'eeco_gift_cards_prefix' => array(
+            'type' => 'string',
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ),
+        'eeco_gift_cards_id_type' => array(
+            'type' => 'string',
+            'default' => 'numeric',
+            'sanitize_callback' => 'sanitize_text_field'
+        ),
+        'eeco_gift_cards_id_range_min' => array(
+            'type' => 'integer',
+            'default' => 0,
+            'sanitize_callback' => 'intval'
+        ),
+        'eeco_gift_cards_taxes' => array(
+            'type' => 'boolean',
+            'default' => true,
+        ),
+        'eeco_gift_cards_license_key' => array(
+            'type' => 'string',
+            'default' => '',
+        ),
+        'eeco_gift_cards_pdf_prefix' => array(
+            'type' => 'string',
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ),
+        'eeco_gift_cards_pdf_logo' => array(
+            'type' => 'string',
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ),
+        'eeco_gift_cards_pdf_logo_offline' => array(
+            'type' => 'string',
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ),
+        'eeco_gift_cards_background_color_online' => array(
+            'type' => 'string',
+            'default' => '',
+        ),
+        'eeco_gift_cards_background_color_offline' => array(
+            'type' => 'string',
+            'default' => '',
+        ),
+        'eeco_gift_cards_font_color_online' => array(
+            'type' => 'string',
+            'default' => '',
+        ),
+        'eeco_gift_cards_font_color_offline' => array(
+            'type' => 'string',
+            'default' => '',
+        ),
+        'eeco_gift_cards_pdf_customer_service_email' => array(
+            'type' => 'string',
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ),
+        'eeco_gift_cards_pdf_customer_service_phonenumber' => array(
+            'type' => 'string',
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ),
+        'eeco_gift_cards_instructions_online'   => array(
+            'type' => 'string',
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ),
+        'eeco_gift_cards_instructions_offline'   => array(
+            'type' => 'string',
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field'
+        ),
+        'eeco_gift_cards_myaccount_slug'   => array(
+            'type' => 'string',
+            'default' => 'gift-cards',
+            'sanitize_callback' => 'sanitize_text_field'
+        )
+    );
+
+    /**
+     * binding actions
+     */
+    public function __construct(){
+        add_action( 'admin_init', array($this, 'register_settings') );
+        add_action( 'admin_enqueue_scripts', array($this, 'load_assets') );
+        add_filter( 'manage_online_gift_card_posts_columns', array($this, 'online_gift_card_columns') ) ;
+        add_action( 'manage_online_gift_card_posts_custom_column', array($this, 'online_gift_card_column_data'), 10, 2);
+        add_filter( 'manage_offline_gift_card_posts_columns', array($this, 'offline_gift_card_columns') ) ;
+        add_action( 'manage_offline_gift_card_posts_custom_column', array($this, 'offline_gift_card_column_data'), 10, 2);
+        add_action( 'woocommerce_product_options_general_product_data', array($this, 'custom_fields') );
+        add_action( 'woocommerce_process_product_meta', array($this, 'save_custom_fields') );
+        add_action( 'admin_print_footer_scripts', array($this, 'eeco_gift_cards_pointer_script') );
+    }
+
+    /**
+     * add product custom fields
+     */
+    public function custom_fields(){
+        $min_args = array(
+            'id' => '_gift_card_min_price',
+            'label' => __( 'Gift card min price', 'eeco-gift-cards' ),
+            'class' => 'show_if_offline_gift_card show_if_online_gift_card',
+            'desc_tip' => true,
+            'type' => 'number',
+            'description' => __( 'Enter the minimun price of the gift card', 'eeco-gift-cards' ),
+        );
+
+        $max_args = array(
+            'id' => '_gift_card_max_price',
+            'label' => __( 'Gift card max price', 'eeco-gift-cards' ),
+            'class' => 'show_if_offline_gift_card show_if_online_gift_card',
+            'desc_tip' => true,
+            'type' => 'number',
+            'description' => __( 'Enter the maximum price of the gift card', 'eeco-gift-cards' ),
+        );
+
+        $recommended_args = array(
+            'id' => '_gift_card_rec_price',
+            'label' => __( 'Gift card recommended price', 'eeco-gift-cards' ),
+            'class' => 'show_if_offline_gift_card show_if_online_gift_card',
+            'desc_tip' => true,
+            'type' => 'number',
+            'description' => __( 'Default price displayed on product page', 'eeco-gift-cards' ),
+        );
+
+        $value_args = array(
+            'id' => '_gift_card_expires_value',
+            'label' => __( 'Gift card expires in', 'eeco-gift-cards' ),
+            'class' => 'show_if_offline_gift_card show_if_online_gift_card',
+            'desc_tip' => true,
+            'type' => 'number',
+            'description' => __( 'How long the gift card will be valid for', 'eeco-gift-cards' ),
+        );
+
+        $unit_args = array(
+            'id' => '_gift_card_expires_unit',
+            'class' => 'show_if_offline_gift_card show_if_online_gift_card',
+            'label' => '',
+            'options' => array(
+                'day' => __('Days','eeco-gift-cards'),
+                'week' => __('Weeks','eeco-gift-cards'),
+                'month' => __('Months','eeco-gift-cards'),
+                'year' => __('Years','eeco-gift-cards'),
+            )
+        );
+
+        $message_args = array(
+            'id' => '_gift_card_enable_custom_message',
+            'class' => 'show_if_offline_gift_card show_if_online_gift_card',
+            'label' => __( 'Enable custom message', 'eeco-gift-cards' ),
+            'description' => __( 'Allow customer to write a custom message for gift card email', 'eeco-gift-cards' ),
+        );
+
+        $delivery_args = array(
+            'id' => '_gift_card_enable_scheduled_delivery',
+            'class' => 'show_if_offline_gift_card show_if_online_gift_card',
+            'label' => __( 'Enable scheduled delivery', 'eeco-gift-cards' ),
+            'description' => __( 'Allow customer to choose when the gift card will be delivered', 'eeco-gift-cards' ),
+        );
+
+        ?><div class='options_group show_if_offline_gift_card show_if_online_gift_card'><?php
+            woocommerce_wp_text_input( $min_args );
+            woocommerce_wp_text_input( $max_args );
+            woocommerce_wp_text_input( $recommended_args );
+        ?></div>
+        <div class='options_group show_if_offline_gift_card show_if_online_gift_card'><?php
+            woocommerce_wp_checkbox( $message_args );
+            woocommerce_wp_checkbox( $delivery_args );
+        ?></div>
+        <div class='options_group show_if_offline_gift_card show_if_online_gift_card'><?php
+            woocommerce_wp_text_input( $value_args );
+            woocommerce_wp_select($unit_args);
+        ?></div>
+        <?php
+    }
+
+    /**
+     * save product custom field data
+     * 
+     * @param int $post_id The post id
+     */
+    public function save_custom_fields( $post_id ) {
+        if(isset($_POST['product-type']) && in_array($_POST['product-type'], array('offline_gift_card', 'online_gift_card'))){
+
+            foreach ($this->meta_keys as $value) {
+                if(isset($_POST[$value])){
+                    update_post_meta($post_id, $value, $_POST[$value]);
+                }
+                else{
+                    delete_post_meta($post_id, $value);
+                }
+            }
+            
+            if(isset($_POST['_gift_card_min_price'])){
+                $_POST['_regular_price'] = $_POST['_gift_card_min_price'];
+            }
+        }
+    }
+
+    /**
+     * custom columns for offline gift card
+     * 
+     * @param array $columns The table columns
+     * @return array Filtered columns
+     */
+    public function offline_gift_card_columns( $columns ){
+        unset($columns['date']);
+
+        $columns['order_id'] = __('Order ID', 'eeco-gift-cards');
+        $columns['customer_email'] = __('Customer email', 'eeco-gift-cards');
+        $columns['receiver_email'] = __('Receiver email', 'eeco-gift-cards');
+        $columns['delivery'] = __('Sent to the recipient', 'eeco-gift-cards');
+        $columns['expiration'] = __('Expiration date', 'eeco-gift-cards');
+        // $columns['card_sold'] = __('Card purchased', 'eeco-gift-cards');
+        $columns['actions'] = _x('Actions', 'Gift card columns', 'eeco-gift-cards');
+        $columns['title'] = __('Gift card number', 'eeco-gift-cards');
+
+        return $columns;
+    }
+
+    /**
+     * custom columns
+     * 
+     * @param array $columns The table columns
+     * @return array Filtered columns
+     */
+    public function online_gift_card_columns( $columns ) {
+        /**
+         * Change date location from first to last
+         */
+        unset($columns['date']);
+
+        $columns['card_usage'] = __('Value used', 'eeco-gift-cards');
+        $columns['card_status'] = __('Gift card status', 'eeco-gift-cards');
+        $columns['order_id'] = __('Order ID', 'eeco-gift-cards');
+        $columns['customer_email'] = __('Customer email', 'eeco-gift-cards');
+        $columns['receiver_email'] = __('Receiver email', 'eeco-gift-cards');
+        $columns['delivery'] = __('Sent to the recipient', 'eeco-gift-cards');
+        $columns['expiration'] = __('Expiration date', 'eeco-gift-cards');
+        // $columns['card_sold'] = __('Card purchased', 'eeco-gift-cards');
+        $columns['actions'] = _x('Actions', 'Gift card columns', 'eeco-gift-cards');
+        $columns['title'] = __('Gift card number', 'eeco-gift-cards');
+        
+    
+        return $columns;
+    }
+
+    /**
+     * online gift card custom column data
+     * 
+     * @param string $columnn_name Slug of the column
+     * @param int $post_id The post id
+     */
+    public function online_gift_card_column_data($column_name, $post_id){
+        $gift_card = new Eeco_Gift_Card($post_id);
+
+        $order = wc_get_order($gift_card->data['_gift_card_order']);
+        $user_id = $order ? $order->get_customer_id() : '';
+        $customer_email = $order ? $order->get_billing_email() : $gift_card->data['_receiver_email'];
+
+        switch ($column_name) {
+            case 'card_usage':
+                echo eeco_gift_cards_format_price($gift_card->get_used_amount(), false).' / '.eeco_gift_cards_format_price($gift_card->get_amount());
+                break;
+            case 'delivery':
+                $delivery = $gift_card->get_delivery_date();
+
+                if($gift_card->delivered_on()){
+                    $delivered = $gift_card->delivered_on() ? date(get_option('date_format'), $gift_card->delivered_on()) : '';
+                    echo "<span style='color:green'>".__('Delivered', 'eeco-gift-cards')."</span><br>".$delivered;
+                }
+                else{
+                    if($delivery){
+                        if(date('d.m.Y', $delivery) < date('d.m.Y', time())){
+                            echo "<span style='color:red'>".__('Not delivered', 'eeco-gift-cards')."</span>";
+                        }
+                        else{
+                            echo "<span>".sprintf(__('Delivery on: %s', 'eeco-gift-cards'), date(get_option('date_format'), $delivery))."</span>";
+                        }
+                    }
+                    else {
+                        echo "<span style='color:red'>".__('-', 'eeco-gift-cards')."</span>";
+                    }
+                }
+                break;
+            case 'card_status':
+                if($gift_card->has_expired()){
+                    echo "<span style='color:red'>".__('Expired', 'eeco-gift-cards')."</span>";
+                }
+                else if($gift_card->is_active()){
+                    echo "<span style='color:green'>".__('Active', 'eeco-gift-cards')."</span>";
+                }
+                else{
+                    echo "<span style='color:red'>".__('Inactive', 'eeco-gift-cards')."</span>";
+                }
+                break;
+            case 'expiration':
+                echo $gift_card->get_date(true);
+                break;
+            case 'card_sold':
+                echo get_the_date('', $post_id);
+                break;
+            case 'order_id':
+                if($order){
+                    echo '<a href="'. admin_url( 'post.php?post=' . absint( $gift_card->data['_gift_card_order'] ) . '&action=edit' ) .'" >#'.$gift_card->data['_gift_card_order'].'</a>';
+                }
+                else{
+                    echo '-';
+                }
+                break;
+            case 'customer_email':
+                $url = $user_id ? '<a href="'.admin_url('user-edit.php?user_id='.$user_id).'">'.$customer_email.'</a>' : $customer_email;
+                echo $url;
+                break;
+            case 'receiver_email':
+                echo !empty($gift_card->data['_receiver_email']) ? $gift_card->data['_receiver_email'] : $customer_email;
+                break;
+            case 'actions':
+                if (!$gift_card->has_expired()) {
+                    if($order){
+                        echo '<button name="resend_gift_card" class="button" data-gift_card_code="'.$gift_card->get_code().'" data-order_id="'.$gift_card->data['_gift_card_order'].'">'._x('Send again', 'Admin column', 'eeco-gift-cards').'</button>';
+                    }
+                    if($gift_card->is_active()){
+                        echo "<button name='deactivate_gift_card' value='$post_id' style='margin-top:15px;' class='button-link-delete button button-small'>".__('Deactivate', 'eeco-gift-cards')."</button>";
+                    }
+                    else{
+                        echo "<button name='activate_gift_card' value='$post_id' style='margin-top:15px;' class='button button-primary'>".__('Activate', 'eeco-gift-cards')."</button>";
+                    }
+                }
+            default:
+                break;
+        }
+    }
+
+    /**
+     * offline gift card custom column data
+     * 
+     * @param string $columnn_name Slug of the column
+     * @param int $post_id The post id
+     */
+    function offline_gift_card_column_data($column_name, $post_id){
+        $gift_card = new Eeco_Gift_Card($post_id);
+
+        $order = wc_get_order($gift_card->data['_gift_card_order']);
+        $user_id = $order ? $order->get_customer_id() : '';
+        $customer_email = $order ? $order->get_billing_email() : $gift_card->data['_receiver_email'];
+
+        switch ($column_name) {
+            case 'delivery':
+                $delivery = $gift_card->get_delivery_date();
+
+                if($gift_card->delivered_on()){
+                    $delivered = $gift_card->delivered_on() ? date(get_option('date_format'), $gift_card->delivered_on()) : '';
+                    echo "<span style='color:green'>".__('Delivered', 'eeco-gift-cards')."</span><br>".$delivered;
+                }
+                else{
+                    if($delivery){
+                        if(date('d.m.Y', $delivery) < date('d.m.Y', time())){
+                            echo "<span style='color:red'>".__('Not delivered', 'eeco-gift-cards')."</span>";
+                        }
+                        else{
+                            echo "<span>".sprintf(__('Delivery on: %s', 'eeco-gift-cards'), date(get_option('date_format'), $delivery))."</span>";
+                        }
+                    }
+                    else {
+                        echo "<span style='color:red'>".__('-', 'eeco-gift-cards')."</span>";
+                    }
+                }
+                break;
+            case 'expiration':
+                if ($gift_card->has_expired()) {
+                    echo "<span style='color:red'>".__('Expired', 'eeco-gift-cards')."</span><br>".$gift_card->get_date(true);
+                } else {
+                    echo $gift_card->get_date(true);
+                }
+                break;
+            case 'card_sold':
+                echo get_the_date('', $post_id);
+                break;
+            case 'order_id':
+                if($order){
+                    echo '<a href="'. admin_url( 'post.php?post=' . absint( $gift_card->data['_gift_card_order'] ) . '&action=edit' ) .'" >#'.$gift_card->data['_gift_card_order'].'</a>';
+                }
+                else{
+                    echo '-';
+                }
+                break;
+            case 'customer_email':
+                $url = $user_id ? '<a href="'.admin_url('user-edit.php?user_id='.$user_id).'">'.$customer_email.'</a>' : $customer_email;
+                echo $url;
+                break;
+            case 'receiver_email':
+                echo !empty($gift_card->data['_receiver_email']) ? $gift_card->data['_receiver_email'] : $customer_email;
+                break;
+            case 'actions':
+                if($order && !$gift_card->has_expired()){
+                    echo '<button name="resend_gift_card" class="button" data-gift_card_code="'.$gift_card->get_code().'" data-order_id="'.$gift_card->data['_gift_card_order'].'">'._x('Send again', 'Admin column', 'eeco-gift-cards').'</button>';
+                }
+            default:
+                break;
+        }
+    }
+
+    /**
+     * register gift card settings
+     */
+    public function register_settings(){
+        foreach (self::$settings as $key => $value) {
+            register_setting('eeco_gift_cards_settings', $key, $value);
+        }
+    }
+
+    /**
+     * returns the settings
+     * 
+     * @return array Settings
+     */
+    public static function get_settings(){
+        return self::$settings;
+    }
+
+    /**
+     * load admin assets
+     * 
+     * @param string $page Current page
+     */
+    public function load_assets(){
+        global $post, $pagenow;
+        if(is_admin() && is_object($post) && $post->post_type == 'product'){
+            wp_enqueue_script('product-fields', plugins_url('/assets/js/product.js' , __DIR__ ), array('jquery'), EECO_GIFT_CARDS_VERSION);
+        }
+        else if($pagenow == 'edit.php' && isset($_GET['post_type']) && in_array($_GET['post_type'], array('online_gift_card', 'offline_gift_card'))){
+            wp_enqueue_style('gift-card-list', plugins_url('/assets/css/list.css' , __DIR__ ), false, EECO_GIFT_CARDS_VERSION);
+        }
+        if(isset($_GET['page']) && $_GET['page'] == 'eeco_gift_cards_settings'){
+            wp_enqueue_media();
+            wp_register_script('media-uploader', plugins_url('/assets/js/settings.js' , __DIR__ ), array('jquery'), EECO_GIFT_CARDS_VERSION);
+            wp_enqueue_script('media-uploader');
+            wp_enqueue_style('gift-card-settings', plugins_url('/assets/css/settings.css' , __DIR__ ), false, EECO_GIFT_CARDS_VERSION); 
+            wp_enqueue_script('wp-pointer');
+        }
+        else if(isset($_GET['page']) && $_GET['page'] == 'eeco-gift-cards'){
+            wp_enqueue_script( 'jquery-ui-datepicker' );
+            wp_register_style( 'jquery-ui', 'https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css' );
+            wp_enqueue_style( 'jquery-ui' );  
+            wp_enqueue_style('gift-card-reports', plugins_url('/assets/css/reports.css' , __DIR__ ), false, EECO_GIFT_CARDS_VERSION);
+            wp_enqueue_script('gift-card-reports-script', plugins_url('/assets/js/reports.js' , __DIR__ ), array('jquery'), EECO_GIFT_CARDS_VERSION);
+        }
+        else if(isset($_GET['page']) && $_GET['page'] == 'eeco_gift_cards_import'){
+            wp_enqueue_script('gift-card-import-script', plugins_url('/assets/js/csv-import.js' , __DIR__ ), array('jquery'), EECO_GIFT_CARDS_VERSION);
+            wp_localize_script( 'gift-card-import-script', 'gift_cards_import',
+                array( 
+                    'done' => _x('DONE', 'Gift card import progress', 'eeco-gift-cards'),
+                    'progress' => _x('Progress', 'Gift card import progress', 'eeco-gift-cards'),
+                    'created' => _x('Created', 'Gift card import progress', 'eeco-gift-cards'),
+                    'skipped' => _x('Skipped', 'Gift card import progress', 'eeco-gift-cards'),
+                )
+            );
+        }
+        else if(isset($_GET['page']) && $_GET['page'] == 'eeco_gift_cards_help') {
+            wp_enqueue_style('gift-card-help', plugins_url('/assets/css/help.css' , __DIR__ ), false, EECO_GIFT_CARDS_VERSION);
+        }
+        if ($post && ($post->post_type == 'offline_gift_card' || $post->post_type == 'online_gift_card')) {
+            wp_enqueue_script('gift-card-scripts', plugins_url('/assets/js/gift-card-scripts.js' , __DIR__ ), array('jquery'), EECO_GIFT_CARDS_VERSION);
+        }
+    }
+
+    /**
+     * Add pointer function and script
+     */
+    public function eeco_gift_cards_pointer_script() {
+        if(isset($_GET['page']) && $_GET['page'] == 'eeco_gift_cards_settings'){
+            $pointer_content = _x('<h3>How to use Gift Card</h3>', 'Admin tooltip', 'eeco-gift-cards');
+            $pointer_content .= _x('<p>Please tell people how they can use the gift card. These instructions will be attached to Gift Card email.</p>', 'Admin tooltip', 'eeco-gift-cards'); ?>
+            <script type="text/javascript">
+            //<![CDATA[
+            jQuery(document).ready(function($) {
+                $('label[for="eeco_gift_cards_instructions_online"] .dashicons').on('click', function() {
+                    $(this).pointer({
+                        content: '<?php echo $pointer_content; ?>',
+                        position: 'top'
+                    }).pointer('open');
+                })
+            });
+            //]]>
+            </script>
+            <?php
+        }
+    }
+}

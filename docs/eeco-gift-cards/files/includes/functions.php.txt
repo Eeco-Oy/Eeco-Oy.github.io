@@ -1,0 +1,485 @@
+<?php
+use Handlebars\Handlebars;
+use Handlebars\Loader\FilesystemLoader;
+/**
+ * gets the given template and includes it
+ * 
+ * @param array $args Arguments to pass to the template
+ */
+function eeco_gift_cards_get_template($template, $args = array()){
+    if(!empty($args)){
+        extract( $args, EXTR_SKIP );
+    }
+
+    if(file_exists(get_stylesheet_directory() . "/eeco-gift-cards/" . $template)){
+        include(get_stylesheet_directory() . "/eeco-gift-cards/" . $template);
+    }
+    else if(file_exists(get_template_directory() . "/eeco-gift-cards/" . $template)){
+        include(get_template_directory() . "/eeco-gift-cards/" . $template);
+    }
+    else{
+        include(plugin_dir_path( __DIR__ )."templates/" . $template);
+    }
+}
+/**
+ * Function creates a gift card pdf file from order, giftcard and settings objects.
+ * Gift card pdf files will be uploaded to wp upload directory /giftcard folder.
+ * 
+ * @see https://mpdf.github.io/configuration/configuration-v7-x.html
+ * @see https://mpdf.github.io/fonts-languages/fonts-in-mpdf-7-x.html
+ * 
+ * @param object $order Order data
+ * @param object $giftcard gift card data
+ * @param object $settings Plugin settings
+ * 
+ * @return string Where gift card pdf was created.
+ */
+function create_gift_card_pdf($order, $gift_card) {
+    $upload_dir = wp_upload_dir();
+    
+    $card = [
+        "from" => $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+        "to" => $gift_card->get_receiver_email(),
+        "amount" => $gift_card->get_amount(),
+        "currency" => $order->get_currency(),
+        "currency_symbol" => html_entity_decode(get_woocommerce_currency_symbol($order->get_currency())),
+        "expires" => $gift_card->get_date(true),
+        "number" => $gift_card->get_code(),
+        "confirmation" => $gift_card->get_validator(),
+        "message" => $gift_card->get_message()
+    ];
+    //Check if gift card is online or offline
+    if($gift_card->is_online()){
+        $type = '';
+    }else{
+        $type = '-offline';
+    }
+    $defaultConfig = (new Mpdf\Config\ConfigVariables())->getDefaults();
+    $defaultFontConfig = (new Mpdf\Config\FontVariables())->getDefaults();
+
+    $mpdf = new \Mpdf\Mpdf(apply_filters( 'eeco_gift_cards_mpdf_args', [
+        'fontDir' => $defaultConfig['fontDir'],
+        'fontdata' => $defaultFontConfig['fontdata'],
+        'mode' => 'utf-8',
+        'format' => [148, 209],
+        'orientation' => 'L'
+    ]));
+    $mpdf->curlAllowUnsafeSslRequests = true;
+    $mpdf->WriteHTML(eeco_gift_cards_render_template($card, $type));
+
+    if($prefix = get_option('eeco_gift_cards_pdf_prefix')){
+        $file_name = $prefix . '-' . $gift_card->get_code().'.pdf';
+    }
+    else{
+        $file_name = $gift_card->get_code().'.pdf';
+    }
+
+    if (!file_exists($upload_dir['basedir'] . '/eeco-gift-cards')) {
+        mkdir($upload_dir['basedir'] . '/eeco-gift-cards', 0777, true);
+    }
+
+    $path = $upload_dir['basedir'] . '/eeco-gift-cards/' . $file_name;
+    $url = $upload_dir['baseurl'] . '/eeco-gift-cards/' . $file_name;
+
+    $results = array('url' => $url, 'path' => $path, 'file_name' => $file_name);
+
+    $mpdf->Output($path,'F');
+
+    return $results;
+}
+
+/**
+ * Render gift card on settings page for preview
+ * 
+ * @param string $type The git card type 
+ * @return string
+ */
+function eeco_gift_cards_render($type){
+    $card = [
+        "from" => __('John Doe', 'eeco-gift-cards'),
+        "to" => __('example@example.com', 'eeco-gift-cards'),
+        "amount" => '100',
+        "currency" => 'EUR',
+        "currency_symbol" => html_entity_decode(get_woocommerce_currency_symbol()),
+        "expires" => date('d.m.Y'),
+        "number" => 'test123123',
+        "confirmation" => '75980437509874539028'
+    ];
+    
+    return eeco_gift_cards_render_template($card, $type);
+}
+
+/**
+ * Download PDF of the example gift card
+ * 
+ * @param string $type The gift card type
+ */
+function eeco_gift_cards_download_preview_pdf($type) {
+    $upload_dir = wp_upload_dir();
+
+    $defaultConfig = (new Mpdf\Config\ConfigVariables())->getDefaults();
+    $defaultFontConfig = (new Mpdf\Config\FontVariables())->getDefaults();
+
+    $mpdf = new \Mpdf\Mpdf(apply_filters( 'eeco_gift_cards_mpdf_args', [
+        'fontDir' => $defaultConfig['fontDir'],
+        'fontdata' => $defaultFontConfig['fontdata'],
+        'mode' => 'utf-8',
+        'format' => [148, 209],
+        'orientation' => 'L'
+    ]));
+    
+    $mpdf->curlAllowUnsafeSslRequests = true;
+    $mpdf->WriteHTML(eeco_gift_cards_render($type));
+
+    if($prefix = get_option('eeco_gift_cards_pdf_prefix')) {
+        $file_name = $prefix . $type . '-test.pdf';
+    }
+    else{
+        $file_name = 'testilahjakortti.pdf';
+    }
+
+    if(!file_exists($upload_dir['basedir'] . '/eeco-gift-cards')) {
+        mkdir($upload_dir['basedir'] . '/eeco-gift-cards', 0777, true);
+    }
+
+    $path = $upload_dir['basedir'] . '/eeco-gift-cards/' . $file_name;
+    $url = $upload_dir['baseurl'] . '/eeco-gift-cards/' . $file_name;
+
+    $results = array('url' => $url, 'path' => $path, 'file_name' => $file_name);
+
+    $mpdf->Output($path,'F');
+
+    eeco_gift_cards_download_file($url, $path);
+}
+
+/**
+ * Generate gift card html using handlebars
+ * 
+ * @param array $card The card content
+ * @return string
+ */
+function eeco_gift_cards_render_template($card, $type){
+
+    $partialsDir = eeco_gif_cards_template_root("gift-card$type.html");
+   
+    $partialsLoader = new FilesystemLoader($partialsDir,
+        [
+            "extension" => "html"
+        ]
+    );
+    
+
+    # We'll use $handlebars throughout this the examples, assuming the will be all set this way
+    $handlebars = new Handlebars([
+        "loader" => $partialsLoader,
+        "partials_loader" => $partialsLoader
+    ]);
+
+    # Will render the model to the templates/main.tpl template
+    $model = [
+        "title" => __( 'Gift card', 'eeco-gift-cards' ),
+        "logo" => get_option('eeco_gift_cards_pdf_logo'),
+        "logo_offline" => get_option('eeco_gift_cards_pdf_logo_offline'),
+        "online_background_color" => get_option('eeco_gift_cards_background_color_online'),
+        "online_font_color" => get_option('eeco_gift_cards_font_color_online'),
+        "online_instructions" => get_option('eeco_gift_cards_instructions_online'),
+        "offline_background_color" => get_option('eeco_gift_cards_background_color_offline'),
+        "offline_font_color" => get_option('eeco_gift_cards_font_color_offline'),
+        "offline_instructions" => get_option('eeco_gift_cards_instructions_offline'),
+        "card" => $card,
+        "customerservice" => [
+            "email" => get_option('eeco_gift_cards_pdf_customer_service_email'),
+            "phone" => get_option('eeco_gift_cards_pdf_customer_service_phonenumber')
+        ],
+        "translations" => [
+            "from" => __( 'From:', 'eeco-gift-cards' ),
+            "to" => __( 'To:', 'eeco-gift-cards' ),
+            "amount" => __( 'Amount:', 'eeco-gift-cards' ),
+            "expires" => __( 'Expires:', 'eeco-gift-cards' ),
+            "number" => __( 'Number:', 'eeco-gift-cards' ),
+            "confirmation" => __( 'Confirmation code:', 'eeco-gift-cards' ),
+            "shopOpen" => __( 'Web shop is open', 'eeco-gift-cards' ),
+            "customerservice" => __( 'Customer service:', 'eeco-gift-cards' ),
+            "phonenumber" => __( 'Phone number:', 'eeco-gift-cards' ),
+            "message" => __( 'Message:', 'eeco_gift_cards' )
+        ]
+    ];
+    // Add filter for $model
+    apply_filters('eeco_gift_card_model', $model, $type);
+    //Return the gift card template of chosen type
+    return $handlebars->render("gift-card{$type}", $model);
+    
+}
+
+/**
+ * fetches the gift cards for given order
+ * can be filtered by gift card type
+ * 
+ * @param int $order_id The order id
+ * @param string|array $types Gift card types
+ * @return array Queried posts
+ */
+function get_eeco_gift_cards_for_order($order_id, $types = array('offline_gift_card', 'online_gift_card')){
+    $post_args  = array(
+        'post_parent' => $order_id,
+        'posts_per_page' => -1,
+        'post_type' => $types,
+    );
+
+    return get_posts($post_args);
+}
+
+/**
+ * get the post for single giftcard
+ * 
+ * @param string $code The code
+ * @return WP_Post|boolean
+ */
+function eeco_get_gift_card_post($code){
+    $coupon = get_posts(array(
+        'name' => $code,
+        'post_type' => array('online_gift_card', 'offline_gift_card'),
+        'posts_per_page' => 1
+    ));
+
+    if(isset($coupon[0])){
+        return $coupon[0];
+    }
+
+    return false;
+}
+
+/**
+ * get a single gift card
+ * 
+ * @param string $code The gift card code
+ * @return Eeco_Gift_Card|boolean
+ */
+function eeco_get_gift_card($code){
+    $args = array(
+        'post_type' => array('online_gift_card', 'offline_gift_card'),
+        'posts_per_page' => 1,
+        'meta_key' => '_gift_card_number',
+        'meta_value' => $code
+    );
+
+    if(is_array($code)){
+        $args['meta_compare'] = 'IN';
+    }
+
+    $gift_cards = get_posts($args);
+
+    if(isset($gift_cards[0])){
+
+        if(is_array($code)){
+
+            $instances = array();
+
+            foreach ($gift_cards as $gift_card) {
+                $instances[] = new Eeco_Gift_Card($gift_card);
+            }
+        }
+        else{
+            return new Eeco_Gift_Card($gift_cards[0]);
+        }
+    }
+
+    return false;
+}
+
+/**
+ * add gift card transaction
+ * 
+ * @param int $order_id Id of the order
+ * @param int $gift_card_id Id of the gift card
+ * @param string $validator Validator value
+ * @param float $amount Amount used in the transaction
+ * @param float $tax Taxes
+ * @return boolean
+ */
+function eeco_gift_cards_create_transaction($order_id, $gift_card_id, $validator, $amount, $tax = 0){
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'gift_card_transaction';
+
+    return $wpdb->insert( 
+        $table_name, 
+        array( 
+            'order_id' => $order_id, 
+            'gift_card_id' => $gift_card_id, 
+            'validator' => $validator, 
+            'amount' => $amount, 
+            'tax' => $tax, 
+        ) 
+    );
+}
+
+
+/**
+ * get gift cards tempalate root
+ * 
+ * @param string $template The template
+ * @param string $dir The directory
+ * @return string Template root
+ */
+function eeco_gif_cards_template_root($template, $dir = 'partials'){
+    $root = plugin_dir_path( __DIR__ )."templates/$dir";
+
+    if(file_exists(get_stylesheet_directory() . "/eeco-gift-cards/$dir/" . $template)){
+        $root = get_stylesheet_directory()."/eeco-gift-cards/$dir";
+    }
+    else if(file_exists(get_template_directory() . "/eeco-gift-cards/$dir/" . $template)){
+        $root = get_template_directory()."/eeco-gift-cards/$dir";
+    }
+
+    return $root;
+}
+
+/**
+ * format the given date
+ * 
+ * @param string $date The date to format
+ * @param string $old The old date separator
+ * @param string $new The new date separator
+ * @param string $format The new format
+ * @param string Formatted date
+ */
+function eeco_gift_cards_format_date($date, $old = '.', $new = '-', $format = 'Y-m-d'){
+    $date = explode($old, $date);
+
+    if(count($date) === 3){
+        $formated_date = date($format, strtotime($date[2] . $new . $date[1] . $new . $date[0]));
+    }
+    else{
+        $formated_date = date($format, time());
+    }
+
+    return $formated_date;
+}
+
+/**
+ * generates the end date for gift card validity
+ * 
+ * @param WC_Order_Item_Product $item Order item
+ * @param WC_Product $product Product
+ * @return string expiration date
+ */
+function eeco_gift_cards_create_exipration_date($item, $product){
+    $unit = get_post_meta($product->get_id(), '_gift_card_expires_unit', true);
+    $value = get_post_meta($product->get_id(), '_gift_card_expires_value', true);
+    $delivery = $item->get_meta('gift_card_delivery_date', true);
+
+    $expiration = null;
+
+    if($unit && $value){
+        $expiration = "+$value $unit";
+    }
+
+    $date = new DateTime('now');
+
+    if($expiration){
+        $date->modify($expiration);
+    }
+    else{
+        $date->modify('+6 month');
+    }
+
+    if($delivery && strtotime($delivery)){
+        $delivery_date = new DateTime($delivery);
+        $current_date = new DateTime(date('Y-m-d', time()));
+
+        $diff = date_diff($delivery_date, $current_date)->format('%a');
+
+        if($diff){
+            $date->modify("+$diff days");
+        }
+    }
+
+    return $date->format('Y-m-d');
+}
+
+/**
+ * Download and delete file from the server
+ * 
+ * @param string $url File url
+ * @param string $path File path
+ * @param boolean $delete Delete file after download
+ */
+function eeco_gift_cards_download_file($url, $path, $delete = true) {
+
+    if( ! $url ) {
+        return;
+    }
+    //clean the fileurl
+    $file_url  = stripslashes( trim( $url ) );
+    //get filename
+    $file_name = basename( $url );
+    //get fileextension
+    
+    $file_extension = pathinfo($file_name)['extension'];
+    //security check
+    $fileName = strtolower($file_url);
+    
+    $whitelist = apply_filters( "eeco_gift_cards_allowed_file_types", ['pdf', 'csv'] );
+    
+    $explode = explode('.', $fileName);
+
+    if(!in_array(end($explode), $whitelist)) {
+        exit('Invalid file!');
+    }
+    if(strpos( $file_url , '.php' ) == true) {
+        die("Invalid file!");
+    }
+    
+    $content_type = "";
+    //check filetype
+    switch( $file_extension ) {
+        case "png": 
+        $content_type="image/png"; 
+        break;
+        case "gif": 
+        $content_type="image/gif"; 
+        break;
+        case "tiff": 
+        $content_type="image/tiff"; 
+        break;
+        case "jpeg":
+        case "jpg": 
+        $content_type="image/jpg"; 
+        break;
+        default: 
+        $content_type="application/force-download";
+    }
+
+    $content_type = apply_filters( "eeco_gift_cards_content_type", $content_type, $file_extension );
+    
+    header("Expires: 0");
+    header("Cache-Control: no-cache, no-store, must-revalidate"); 
+    header('Cache-Control: pre-check=0, post-check=0, max-age=0', false); 
+    header("Pragma: no-cache");	
+    header("Content-type: {$content_type}");
+    header("Content-Disposition:attachment; filename={$file_name}");
+    header("Content-Type: application/force-download");
+    
+    readfile("{$file_url}");
+
+    if($delete) {
+        unlink($path);
+    }
+    exit();
+}
+
+/**
+ * Format a price using woocommerce wp and woocommerce options
+ * 
+ * @param float $amount The price to format
+ * @param boolean $currency Whether to add currency symbol
+ * @return string Formatted price
+ */
+function eeco_gift_cards_format_price($amount, $currency = true){
+    $decimal = wc_get_price_decimal_separator();
+    $thousands = wc_get_price_thousand_separator();
+    $currency_symbol = get_woocommerce_currency_symbol();
+
+    return number_format($amount, 2, $decimal, $thousands) . ($currency ? $currency_symbol : '');
+}

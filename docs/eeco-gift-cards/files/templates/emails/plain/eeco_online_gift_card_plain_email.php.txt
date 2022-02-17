@@ -1,0 +1,60 @@
+<?php 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+/**
+ * @hooked WC_Emails::email_header() Output the email header
+ */
+do_action( 'woocommerce_email_header', $email_heading, $email ); 
+
+$text_align = is_rtl() ? 'right' : 'left';
+
+// translators: Text show on the email
+?>
+<p style="display: block;float:left;width:100%;"><?php printf(__('%s sent you a gift card!', 'eeco-gift-cards'), $order->get_formatted_billing_full_name()) ?></p>
+<p style="display: block;float:left;width:100%;"><?php echo $gift_card->get_message() ?></p>
+
+<div style="margin-bottom: 40px;">
+	<table class="td" cellspacing="0" cellpadding="6" style="width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;" border="1">
+		<thead>
+			<tr>
+				<th class="td" scope="col" style="text-align:<?php echo esc_attr( $text_align ); ?>;">
+					<?php esc_html_e( 'Gift card number', 'eeco-gift-cards' ); ?>
+				</th>
+				<th class="td" scope="col" style="text-align:<?php echo esc_attr( $text_align ); ?>;">
+					<?php esc_html_e( 'Value', 'eeco-gift-cards' ); ?>
+				</th>
+				<th class="td" scope="col" style="text-align:<?php echo esc_attr( $text_align ); ?>;">
+					<?php esc_html_e( 'Valid until', 'eeco-gift-cards' ); ?>
+				</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td class="td" style="text-align:<?php echo esc_attr( $text_align ); ?>; vertical-align:middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">
+					<?php echo $gift_card->get_code() ?>
+				</td>
+				<td class="td" style="text-align:<?php echo esc_attr( $text_align ); ?>; vertical-align:middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">
+					<?php echo eeco_gift_cards_format_price($gift_card->get_amount()) ?>
+				</td>
+				<td class="td" style="text-align:<?php echo esc_attr( $text_align ); ?>; vertical-align:middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">
+					<?php echo $gift_card->get_date(true) ?>
+				</td>
+			</tr>
+		</tbody>
+
+	</table>
+</div>
+
+<?php
+/**
+ * @hooked WC_Emails::order_details() Shows the order details table.
+ * @hooked WC_Emails::order_schema_markup() Adds Schema.org markup.
+ * @since 2.5.0
+ */
+// do_action( 'woocommerce_email_order_details', $order, $sent_to_admin, $plain_text, $email );
+
+/**
+ * @hooked WC_Emails::email_footer() Output the email footer
+ */
+do_action( 'woocommerce_email_footer', $email );

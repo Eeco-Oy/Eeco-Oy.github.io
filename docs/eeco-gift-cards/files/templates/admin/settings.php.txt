@@ -1,0 +1,239 @@
+<div class="wrap" style="position: relative;">
+    <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+    <form action="options.php" method="post">
+        <?php settings_fields( 'eeco_gift_cards_settings' ); ?>
+        <?php do_settings_sections( 'eeco_gift_cards_settings' ); ?>
+        <table class="form-table">
+            <tbody>
+                <tr>
+                    <th scope="row">
+                        <label for=""><?php _e('Gift card plugin license key', 'eeco-gift-cards') ?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('License key allows you to update the plugin when updates are available.', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="text" name="eeco_gift_cards_license_key" value="<?php echo get_option('eeco_gift_cards_license_key') ?>">
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for=""><?php _e('Gift card contains tax', 'eeco-gift-cards') ?></label>
+                    </th>
+                    <td class="gift-card-contains-tax-td">
+                        <i>
+                            <?php _e('Choose whether taxes are applied to purchases made using gift cards as a payment method. Check your local tax code to verify if this is required.','eeco-gift-cards'); ?>
+                        </i>
+                        <p>
+                            <input type="checkbox" name="eeco_gift_cards_taxes" value="1" <?php checked(get_option('eeco_gift_cards_taxes'), '1')?> />
+                            <label><?php _e('Gift card contains tax', 'eeco-gift-cards')?></label>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for=""><?php _e('Gift card id prefix', 'eeco-gift-cards') ?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Gift card codes will be prefixed with this. We recommend using a prefix so that the codes do not overlap with coupon codes.', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="text" name="eeco_gift_cards_prefix" value="<?php echo get_option('eeco_gift_cards_prefix') ?>" maxlength="5">
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for=""><?php _e('Gift card code type', 'eeco-gift-cards') ?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Whether gift card codes are incrementing numbers or random strings', 'eeco-gift-cards')?></i>
+                        <p>
+                            <select name="eeco_gift_cards_id_type" id="eeco_gift_cards_id_type">
+                                <option value="numeric" <?php selected(get_option('eeco_gift_cards_id_type'), 'numeric') ?>><?php _e('Incrementing numbers', 'eeco-gift-cards') ?></option>
+                                <option value="string" <?php selected(get_option('eeco_gift_cards_id_type'), 'string') ?>><?php _e('Random strings', 'eeco-gift-cards') ?></option>
+                            </select>
+                        </p>
+                    </td>
+                </tr>
+                <tr class="numeric-gift-cards<?php echo get_option('eeco_gift_cards_id_type') == 'numeric' ? '' : ' hidden' ?>">
+                    <th scope="row">
+                        <label for=""><?php _e('Gift card code min value', 'eeco-gift-cards') ?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Gift card numeric code range minimum value', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="number" name="eeco_gift_cards_id_range_min" value="<?php echo get_option('eeco_gift_cards_id_range_min') ?>">
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for=""><?php _e('Gift card pdf prefix', 'eeco-gift-cards') ?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Gift card pdfs will be prefixed with this', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="text" name="eeco_gift_cards_pdf_prefix" value="<?php echo get_option('eeco_gift_cards_pdf_prefix') ?>">
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for=""><?php _e('Gift card pdf customer service email address', 'eeco-gift-cards')?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Email address', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="text" name="eeco_gift_cards_pdf_customer_service_email" value="<?php echo get_option('eeco_gift_cards_pdf_customer_service_email'); ?>" />
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th class="offline_gift_card_review_title">
+                        <label for=""><?php _e('Gift card pdf customer service phone number', 'eeco-gift-cards')?></label>
+                    </th>
+                    <td class="offline_gift_card_review_wrapper">
+                        <i><?php _e('Phone number', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="text" name="eeco_gift_cards_pdf_customer_service_phonenumber" value="<?php echo get_option('eeco_gift_cards_pdf_customer_service_phonenumber'); ?>" />
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th class="offline_gift_card_review_title">
+                        <label for=""><?php _e('My account gift cards page slug', 'eeco-gift-cards')?></label>
+                    </th>
+                    <td class="offline_gift_card_review_wrapper">
+                        <i><?php _e('Slug', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="text" name="eeco_gift_cards_myaccount_slug" value="<?php echo get_option('eeco_gift_cards_myaccount_slug'); ?>" />
+                        </p>
+                    </td>
+                </tr>
+                <tr class="eeco_online_gift_card_wrapper">
+                    <th>
+                        <h3><?php _e('Online Gift Card Design', 'eeco-gift-cards'); ?></h3>
+                    </th>
+                    <td>
+                        <i><?php _e('Online gift cards are only redeemable in WooCommerce', 'eeco-gift-cards')?></i>
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for=""><?php _e('Online gift card logo upload', 'eeco-gift-cards') ?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Gift card logo path', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input id="gift_card_logo" type="text" name="eeco_gift_cards_pdf_logo" value="<?php echo get_option('eeco_gift_cards_pdf_logo'); ?>" />
+                            <input type="button" class="button-primary upload_image_button" data-pathinput="gift_card_logo" value="<?php _e('Insert Image','eeco-gift-cards')?>" />
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for=""><?php _e('Online gift card pdf background color', 'eeco-gift-cards')?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Background color', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="color" name="eeco_gift_cards_background_color_online" value="<?php echo get_option('eeco_gift_cards_background_color_online'); ?>" />
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for=""><?php _e('Online gift card pdf font color', 'eeco-gift-cards')?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Font color', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="color" name="eeco_gift_cards_font_color_online" value="<?php echo (get_option('eeco_gift_cards_font_color_online') ? get_option('eeco_gift_cards_font_color_online') : "#ffffff"); ?>"/>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for="eeco_gift_cards_instructions_online"><?php _e('Online gift card instructions', 'eeco-gift-cards')?><span class="dashicons dashicons-editor-help"></span></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Instruction text', 'eeco-gift-cards')?></i>
+                        <p>
+                            <textarea name="eeco_gift_cards_instructions_online" maxlength="200" cols="40" rows="4"><?php echo get_option('eeco_gift_cards_instructions_online'); ?></textarea>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th class="online_gift_card_review_title">
+                        <label for=""><?php _e('Online gift card preview', 'eeco-gift-cards')?></label>
+                    </th>
+                    <td class="online_gift_card_review_wrapper">
+                        <a id="online_gift_card_download" href="?download_online_gift_card=1" class="button"><?php _e('Download online PDF', 'eeco-gift-cards');?></a>
+                    </td>
+                </tr>
+                <tr class="eeco_offline_gift_card_wrapper">
+                    <th>
+                        <h3><?php _e('Offline Gift Card Design', 'eeco-gift-cards'); ?></h3>
+                    </th>
+                    <td>
+                        <i><?php _e('Offline gift cards are only redeemable in physical stores. It is not possible to create identical codes in WooCommerce to prevent misuse', 'eeco-gift-cards')?></i>
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for=""><?php _e('Offline gift card logo upload', 'eeco-gift-cards') ?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Gift card logo path', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input id="gift_card_logo_offline" type="text" name="eeco_gift_cards_pdf_logo_offline" value="<?php echo get_option('eeco_gift_cards_pdf_logo_offline'); ?>" />
+                            <input type="button" class="button-primary upload_image_button" data-pathinput="gift_card_logo_offline" value="<?php _e('Insert Image','eeco-gift-cards')?>" />
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for=""><?php _e('Offline gift card pdf background color', 'eeco-gift-cards')?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Background color', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="color" name="eeco_gift_cards_background_color_offline" value="<?php echo get_option('eeco_gift_cards_background_color_offline'); ?>" />
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for=""><?php _e('Offline gift card pdf font color', 'eeco-gift-cards')?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Font color', 'eeco-gift-cards')?></i>
+                        <p>
+                            <input type="color" name="eeco_gift_cards_font_color_offline" value="<?php echo (get_option('eeco_gift_cards_font_color_offline') ? get_option('eeco_gift_cards_font_color_offline') : "#ffffff"); ?>"/>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for=""><?php _e('Offline gift card instructions', 'eeco-gift-cards')?></label>
+                    </th>
+                    <td>
+                        <i><?php _e('Instruction text', 'eeco-gift-cards')?></i>
+                        <p>
+                            <textarea name="eeco_gift_cards_instructions_offline" maxlength="200" cols="40" rows="4"><?php echo get_option('eeco_gift_cards_instructions_offline'); ?></textarea>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th>
+                        <label for=""><?php _e('Offline gift card preview', 'eeco-gift-cards')?></label>
+                    </th>
+                    <td>
+                        <a id="offline_gift_card_download" href="?download_offline_gift_card=1" class="button"><?php _e('Download offline PDF', 'eeco-gift-cards');?></a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <?php submit_button( __('Save Settings', 'eeco-gift-cards') ); ?>
+    </form>
+</div>

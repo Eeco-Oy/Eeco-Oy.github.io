@@ -1,0 +1,199 @@
+<?php
+/**
+ * Create attachments for the gift card email
+ * @param array     $attachment     The array of attachements 
+ * @param string    $type_id        The type of the email
+ * @param WP_User    $order          The order object
+ */
+function eeco_gift_cards_attachments($order_id){
+    if($order = wc_get_order( $order_id)){
+        $gift_cards = get_eeco_gift_cards_for_order($order->get_id());
+
+        if(!empty($gift_cards)){
+            foreach ($gift_cards as $value) {
+                $gift_card = new Eeco_Gift_Card($value);
+    
+                if($time = $gift_card->get_delivery_date()){
+
+                    wp_schedule_single_event($time, 'eeco_gift_cards_deliver_gift_card', [
+                        $order->get_id(),
+                        $gift_card->get_id()
+                    ]);
+
+                    continue;
+                }
+
+                if($gift_card->is_online()){
+                    do_action('eeco_online_gift_card_customer', $order, $gift_card);
+                }
+                else{
+                    do_action('eeco_offline_gift_card_customer', $order, $gift_card);
+                }
+
+            }
+        }
+    }
+}
+
+add_action('woocommerce_order_status_pending_to_processing_notification', 'eeco_gift_cards_attachments');
+
+/**
+ * Set email classes for gift cards
+ * @param array $emails Array of email classes
+ */
+function eeco_gift_cards_register_emails($emails){
+    require_once EECO_GIFT_CARDS_ROOT.'includes/emails/class-online-gift-card-customer.php';
+    require_once EECO_GIFT_CARDS_ROOT.'includes/emails/class-offline-gift-card-customer.php';
+    
+    $emails['Eeco_Online_Gift_Card_Customer'] = new Eeco_Online_Gift_Card_Customer();
+    $emails['Eeco_Offline_Gift_Card_Customer'] = new Eeco_Offline_Gift_Card_Customer();
+
+    return $emails;
+}
+
+add_filter( 'woocommerce_email_classes', 'eeco_gift_cards_register_emails', 90, 1 );
+
+/**
+ * alter gift cards query when querying by post id
+ * @param WP_Query $query The query object
+ * @return void
+ */
+function eeco_gift_cards_query($query){
+    global $pagenow;
+
+    $array = array('online_gift_card', 'offline_gift_card');
+
+    if($pagenow == 'edit.php' && isset($_GET['post_type']) && in_array($_GET['post_type'], $array)){
+
+        if(isset($_GET['s']) && is_numeric($_GET['s']) && get_post($_GET['s'])){
+            $meta_query = array(
+                'relation' => 'OR',
+                array(
+                    'key' => '_gift_card_order',
+                    'value' => $_GET['s'],
+                ),
+                array(
+                    'key' => '_used_in_order',
+                    'value' => $_GET['s'],
+                )
+            );
+
+            $query->set('meta_query', $meta_query);
+
+            $query->set('s', '');
+        }
+    }
+}
+
+add_filter( 'parse_query', 'eeco_gift_cards_query' );
+
+/**
+ * prefix the gift card code if it has been set
+ * @param mixed $code The code to prefix 
+ * @return string Gift card code
+ */
+function eeco_gift_cards_add_prefix($code){
+    if($prefix = get_option('eeco_gift_cards_prefix')){
+        return $prefix.$code;
+    }
+    else{
+        return $code;
+    }
+}
+
+add_filter('eeco_gift_cards_code', 'eeco_gift_cards_add_prefix');
+
+
+/**
+ * toggle gift card active status
+ */
+function eeco_gift_cards_toggle_status(){
+    if(!is_admin() || wp_doing_ajax()){
+        return;
+    }
+
+    if(current_user_can('manage_options') && isset($_GET['post_type']) && in_array($_GET['post_type'], array('online_gift_card', 'offline_gift_card'))){
+
+        if(isset($_GET['activate_gift_card'])){
+            $gift_card = new Eeco_Gift_Card($_GET['activate_gift_card']);
+
+            $gift_card->set_active(true);
+        }
+        else if(isset($_GET['deactivate_gift_card'])){
+            $gift_card = new Eeco_Gift_Card($_GET['deactivate_gift_card']);
+
+            $gift_card->set_active(false);
+        }
+    }
+}
+
+add_action('wp', 'eeco_gift_cards_toggle_status');
+
+/**
+ * deliver the scheduled gift card
+ * 
+ * @param int $order_id The order id
+ * @param int $gift_card_id The gift card id
+ */
+function eeco_gift_cards_deliver_gift_card($order_id, $gift_card_id){
+    if($order = wc_get_order($order_id)){
+
+        if(!in_array($order->get_status(), ['processing', 'complete'])){
+            return;
+        }
+
+        $gift_card = new Eeco_Gift_Card($gift_card_id);
+
+        if($gift_card->get_id()){
+            WC()->mailer();
+
+            if($gift_card->is_online()){
+                do_action('eeco_online_gift_card_customer', $order, $gift_card);
+            }
+            else{
+                do_action('eeco_offline_gift_card_customer', $order, $gift_card);
+            }
+
+        }
+    }
+    
+}
+
+add_action('eeco_gift_cards_deliver_gift_card', 'eeco_gift_cards_deliver_gift_card', 10, 2);
+
+/**
+ * add email actions
+ * 
+ * @param array $actions The current actions
+ * @return array Email actions
+ */
+function eeco_gift_cards_email_actions( $actions ){
+    $actions[] = 'eeco_online_gift_card_customer';
+    $actions[] = 'eeco_offline_gift_card_customer';
+    return $actions;
+}
+
+add_action( 'woocommerce_email_actions', 'eeco_gift_cards_email_actions' );
+
+/**
+ * Check for expired gift cards and update their status
+ */
+function eeco_gift_cards_check_for_expired(){
+    $gift_cards = get_posts(array(
+        'post_type' => array('offline_gift_card', 'online_gift_card'),
+        'post_status' => 'publish',
+        'meta_key' => '_gift_card_expires',
+        'meta_value' => date('Y-m-d', time()),
+        'meta_compare' => '<',
+        'posts_per_page' => -1
+    ));
+
+    foreach ($gift_cards as $post) {
+        $args = array(
+            'ID' => $post->ID,
+            'post_status' => 'expired'
+        );
+
+        wp_update_post( $args );
+    }
+}

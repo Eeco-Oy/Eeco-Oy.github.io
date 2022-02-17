@@ -1,0 +1,363 @@
+<?php
+
+defined( 'ABSPATH' ) || exit;
+
+class Eeco_Gift_Card {
+    /**
+     * gift card id
+     */
+    private $id = null;
+
+    /**
+     * gift card data
+     */
+    public  $data = array(
+        '_gift_card_number' => '',
+        '_gift_card_amount' => 0,
+        '_gift_card_used' => 0,
+        '_gift_card_expires' => '',
+        '_gift_card_order' => 0,
+        '_gift_card_validator' => '',
+        '_gift_card_url' => '',
+        '_gift_card_path' => '',
+        '_used_in_order' => '',
+        '_receiver_email' => '',
+        '_gift_card_message' => '',
+        '_gift_card_is_active' => true,
+        '_gift_card_delivery_date' => '',
+        '_gift_card_online_instructions' => '',
+        '_gift_card_offline_instructions' => ''
+    );
+
+    /**
+     * making sure correct data is loaded during initialization 
+     * 
+     * @param Eeco_Gift_Card|int|string $data Either code, id or gift card class instance
+     */
+    function __construct($data){
+        if($data instanceof Eeco_Gift_Card){
+            $this->set_id($data->get_id());
+        }
+        else if($data instanceof WP_Post){
+            $this->set_id($data->ID);
+
+            $this->set_is_online($data->post_type == 'online_gift_card' ? true : false);
+        }
+        else if(in_array(get_post_type($data), array('online_gift_card', 'offline_gift_card'))){
+            $this->set_id($data);
+
+            $this->set_is_online(get_post_type($data) == 'online_gift_card' ? true : false);
+        }
+        else{
+            if($data = eeco_get_gift_card_post($data)){
+                $this->set_id($data->ID);
+
+                $this->set_is_online($data->post_type == 'online_gift_card' ? true : false);
+            }
+        }
+
+        $this->load_data();
+    }
+
+    /**
+     * set gift card id
+     * 
+     * @param int $id The id
+     */
+    private function set_id($id){
+        $this->id = $id;
+    }
+
+    /**
+     * get gift card id
+     * 
+     * @return int
+     */
+    public function get_id(){
+        return $this->id;
+    }
+
+    /**
+     * set if gift card is for online
+     * 
+     * @param boolean $is_online Whether is for online use
+     */
+    public function set_is_online($is_online){
+        $this->data['is_online'] = $is_online ? true : false;
+    }
+
+    /**
+     * whether this gift card is for online use only
+     * 
+     * @return boolean
+     */
+    public function is_online(){
+        return $this->data['is_online'];
+    }
+
+    /**
+     * get gift card code
+     * 
+     * @return string|int
+     */
+    public function get_code(){
+        return $this->data['_gift_card_number'];
+    }
+
+    /**
+     * gift card has scheduled delivery date
+     * 
+     * @return string
+     */
+    public function get_delivery_date(){
+        $date = $this->data['_gift_card_delivery_date'];
+
+        if(!$date || !strtotime($date) || $date <= date('Y-m-d', time())){
+            return false;
+        }
+
+        return strtotime($date) + 60*60*12;
+    }
+
+    /**
+     * get expiration date for the gift card
+     * 
+     * @return string
+     */
+    public function get_date($format = false){
+        if($format){
+            return date(get_option('date_format'), strtotime($this->data['_gift_card_expires']));
+        }
+
+        return $this->data['_gift_card_expires'];
+    }
+
+    /**
+     * checks whether gift card is still valid
+     * compares current date to expiration date
+     * 
+     * @return boolean
+     */
+    public function has_expired(){
+        return $this->data['_gift_card_expires'] < date('Y-m-d');
+    }
+
+    /**
+     * checks if gift card is valid
+     * 
+     * @return boolean
+     */
+    public function is_active(){
+        return $this->data['_gift_card_is_active'];
+    }
+
+    /**
+     * sets the active status
+     * 
+     * @param boolean
+     */
+    public function set_active($active){
+        update_post_meta($this->get_id(), '_gift_card_is_active', $active ? 1 : 0);
+
+        $this->data['_gift_card_is_active'] = $active ? 1 : 0;
+    }
+
+    /**
+     * get amount of the gift card
+     * 
+     * @return float
+     */
+    public function get_amount(){
+        return $this->data['_gift_card_amount'];
+    }
+
+    /**
+     * get used amount
+     * 
+     * @return float
+     */
+    public function get_used_amount(){
+        return $this->data['_gift_card_used'];
+    }
+
+    /**
+     * get available value
+     * 
+     * @return float
+     */
+    public function get_value(){
+        return $this->data['_gift_card_amount'] - $this->data['_gift_card_used'];
+    }
+
+    /**
+     * whether gift card has value remaining
+     * 
+     * @param float $amount If passed checking if has anough value
+     * @return boolean
+     */
+    public function has_value($amount = null){
+        if($amount){
+            return $this->data['_gift_card_amount'] >= $this->data['_gift_card_used'] + $amount;
+        }
+
+        return $this->data['_gift_card_amount'] > $this->data['_gift_card_used'];
+    }
+
+    /**
+     * get the maximum value that can be used for given purchase
+     * 
+     * @param float $total The value to check against
+     * @return float
+     */
+    public function max_discount($total){
+        return $this->get_value() < $total ? $this->get_value() : $total;
+    }
+
+    /**
+     * reduce gift card value
+     * 
+     * @param float $amount Amount to reduce
+     * @return boolean Success or failure
+     */
+    public function reduce_value($amount){
+        if($this->data($this->data['_gift_card_amount'] - $this->data['_gift_card_used'] >= $amount)){
+            return update_data('_gift_card_used', $amount);
+        }
+
+        return false;
+    }
+
+    /**
+     * return the receiver email
+     * 
+     * @return string The email
+     */
+    public function get_receiver_email(){
+        return $this->data['_receiver_email'];
+    }
+
+    /**
+     * return the custom gift card message
+     * 
+     * @return string
+     */
+    public function get_message(){
+        return $this->data['_gift_card_message'];
+    }
+
+    /**
+     * get order this gift card has been linked to
+     * 
+     * @return int Order id
+     */
+    public function get_orders(){
+        return get_post_meta($this->get_id(), '_used_in_order');
+    }
+
+    /**
+     * add new order for gift card
+     * 
+     * @param WC_Order $order The order
+     * @param float $amount Amount used
+     */
+    public function add_order($order, $coupon){
+        $include_taxes = get_option('eeco_gift_cards_taxes');
+        $tax = $coupon->get_discount_tax();
+        $total = $coupon->get_discount() + $coupon->get_discount_tax();
+
+        eeco_gift_cards_create_transaction(
+            $order->get_id(), 
+            $this->get_id(), 
+            $this->get_validator(), 
+            $include_taxes ? $coupon->get_discount() : $total,
+            $include_taxes ? $tax : 0
+        );
+
+        add_post_meta($this->get_id(), '_used_in_order', $order->get_id());
+        
+        update_post_meta($this->get_id(), '_gift_card_used', $this->get_used_amount() + $total);
+    }
+
+    /**
+     * get the validator code
+     * 
+     * @return string
+     */
+    public function get_validator(){
+        return $this->data['_gift_card_validator'];
+    }
+
+    /**
+     * get the gift card url
+     * 
+     * @return string
+     */
+    public function get_url(){
+        return $this->data['_gift_card_url'];
+    }
+
+    /**
+     * get the gift card path
+     * 
+     * @return string
+     */
+    public function get_path(){
+        return $this->data['_gift_card_path'];
+    }
+
+    /**
+     * set order delivery status
+     * 
+     * @return boolean
+     */
+    public function delivered(){
+        return update_post_meta($this->get_id(), '_gift_card_delivered', time());
+    }
+
+    /**
+     * Get gift card delivery date
+     * 
+     * @return int unix Timestamp
+     */
+    public function delivered_on(){
+        return get_post_meta($this->get_id(), '_gift_card_delivered', true);
+    }
+
+    /**
+     * generate pdf
+     */
+    public function generate_pdf(){
+        //TODO: possibly implement this?
+
+        throw new Exception('Not implemented');
+    }
+
+    /**
+     * load gift card data
+     */
+    private function load_data(){
+        $meta = get_post_meta($this->get_id());
+
+        foreach ($meta as $key => $value) {
+            if(isset($this->data[$key])){
+                $this->data[$key] = is_array($value) ? $value[0] : $value;
+            }
+        }
+    }
+
+    /**
+     * save gift card meta data
+     * 
+     * @param string $key The meta key
+     * @param string $value Value to save
+     * @return boolean Success or not
+     */
+    public function update_data($key, $value){
+        if($success = update_post_meta($this->get_id(), $key, $value)){
+            $this->data[$key] = $value;
+        }
+
+        return $success;
+    }
+
+}

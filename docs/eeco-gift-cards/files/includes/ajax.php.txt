@@ -1,0 +1,184 @@
+<?php 
+/**
+ * Resend the gift card to customer
+ * 
+ * @param int $_POST['gift_card'] Gift Card ID
+ * @param int $_POST['order'] Order ID
+ */
+function resend_email() {
+    if (current_user_can('manage_options')) {
+        if (isset($_POST['gift_card_code']) && isset($_POST['order'])) {
+            $order = wc_get_order($_POST['order']);
+            $gift_card = eeco_get_gift_card($_POST['gift_card_code']);
+            if ($gift_card) {
+                // Create a new gift card
+                $pdf = create_gift_card_pdf($order, $gift_card);
+                update_post_meta($gift_card->get_id(), "_gift_card_url", $pdf['url']);
+                update_post_meta($gift_card->get_id(), "_gift_card_path", wp_slash($pdf['path']));
+                // Resend the new gift card
+                eeco_gift_cards_deliver_gift_card($_POST['order'], $gift_card->get_id());
+                
+                wp_send_json_success(array('status' => 'ok'));
+            }
+        } 
+        wp_send_json_error('Email failed to send', 500);
+    }
+}
+add_action('wp_ajax_resend_email', 'resend_email');
+
+/**
+ * Import gift cards via csv-file
+ */
+function eeco_gift_cards_csv_import(){
+    if(current_user_can('manage_options')){
+        //Get the batch number
+        $batch = isset($_REQUEST['batch']) && is_numeric($_REQUEST['batch']) ? $_REQUEST['batch'] : 100;
+
+        //Load the gift cards csv file if first iteration
+        if(isset($_FILES["eeco_gift_cards"])){
+            $tmp_name = $_FILES["eeco_gift_cards"]["tmp_name"];
+            $directory = wp_upload_dir();
+            $name = basename($_FILES["eeco_gift_cards"]["name"]);
+    
+            $path = $directory['path'] . '/' . $name;
+
+            //Upload the file
+            move_uploaded_file($tmp_name, $path);
+
+            update_option('eeco_gift_cards_import_path', $path);
+
+            $iteration = 1;
+        }
+        else{
+            $path = get_option('eeco_gift_cards_import_path');
+
+            $iteration = get_option('eeco_gift_cards_import_iteration');
+        }
+
+        $separator = isset($_REQUEST['csv_separator']) ? sanitize_text_field($_REQUEST['csv_separator']) : ',';
+
+        //Map the csv header row with data
+        $csv = array_map(function($row) use($separator){
+            return str_getcsv($row, $separator);
+        }, file($path));
+
+        array_walk($csv, function(&$a) use ($csv) {
+            $a = array_combine($csv[0], $a);
+        });
+
+        array_shift($csv);
+
+        //Slice rows for this iteration
+        $values = array_slice($csv, ( $iteration === 1 ? 0 : ($iteration - 1) * $batch ), $batch);
+        
+        //Array with returned values
+        $return_values = array(
+            'has_more' => $iteration * $batch < count($csv) ? true : false,
+            'created' => 0,
+            'skipped' => 0,
+            'notices' => array(),
+            'progress' => ($iteration === 1 ? count($values) : ($iteration - 1) * $batch + count($values)) . ' / ' . count($csv)
+        );
+
+        //Required csv columns
+        $required_keys = array(
+            'type',
+            'code',
+            'initial_value',
+            'current_value',
+            'expires'
+        );
+        
+        //Loop the sliced rows
+        foreach ($values as $key => $gift_card) {
+            $valid = true;
+
+            //Validate required columns
+            foreach ($required_keys as $required_key) {
+                if(!isset($gift_card[$required_key]) || $gift_card[$required_key] === ""){
+                    $valid = false;
+                }
+            }
+
+            if(!$valid){
+                $return_values['skipped']++;
+                $return_values['notices'][] = sprintf(__('Gift card %s: is missing required fields', 'eeco-gift-cards'), isset($gift_card['code']) ? $gift_card['code'] : $key);
+                continue;
+            }
+
+            //Check that gift card with the same code doesn't already exist 
+            if(get_page_by_title($gift_card['code'], OBJECT, array('online_gift_card', 'offline_gift_card'))){
+                $return_values['skipped']++;
+                $return_values['notices'][] = sprintf(__('Gift card %s: already exists', 'eeco-gift-cards'), $gift_card['code']);
+                continue;
+            }
+
+            $expiration = strtotime($gift_card['expires']);
+
+            //Make sure expiration date is valid
+            if(!$expiration){
+                $return_values['skipped']++;
+                $return_values['notices'][] = sprintf(__('Gift card %s: invalid expiration date', 'eeco-gift-cards'), $gift_card['code']);
+                continue;
+            }
+
+            //Check if gift card values are correct
+            if(floatval($gift_card['initial_value']) < floatval($gift_card['current_value'])){
+                $return_values['skipped']++;
+                $return_values['notices'][] = sprintf(__('Gift card %s: initial value can not be less than current value', 'eeco-gift-cards'), $gift_card['code']);
+                continue;
+            }
+
+            //Gift card arguments
+            $post_args = array(
+                'post_title' => $gift_card['code'],
+                'post_content' => $gift_card['initial_value'],
+                'post_author' => 1,
+                'post_status' => $expiration < time() ? 'expired' : 'publish',
+                'post_type' => $gift_card['type'] === 'offline' ? 'offline_gift_card' : 'online_gift_card',
+                'meta_input' => array(
+                    '_gift_card_number' => $gift_card['code'], 
+                    '_gift_card_amount' => $gift_card['initial_value'], 
+                    '_gift_card_expires' => date('Y-m-d', $expiration), 
+                    '_gift_card_is_active' => true,
+                    '_gift_card_used' => $gift_card['initial_value'] - $gift_card['current_value'],
+                    '_gift_card_validator' => mt_rand(1000000000, 1999999999),
+                    '_receiver_email' => isset($gift_card['email']) ? $gift_card['email'] : ''
+                )
+            );
+
+            //Attempt to inssert gift card to database
+            $result = wp_insert_post($post_args);
+
+            if(is_wp_error($result)){
+                $return_values['skipped']++;
+                $return_values['notices'][] = sprintf(__('Gift card %s: failed to create with error %s', 'eeco-gift-cards'), $gift_card['code'], $result->get_error_message());
+                continue;
+            }
+
+            //Success!
+            $return_values['created']++;
+
+        }
+
+
+        //Remove file if we are done, else update iteration
+        if(!$return_values['has_more']){
+            unlink($path);
+
+            delete_option('eeco_gift_cards_import_iteration');
+
+            delete_option('eeco_gift_cards_import_path');
+        }
+        else{
+            update_option('eeco_gift_cards_import_iteration', $iteration+1);
+        }
+
+        //Update front end with the import progress
+        wp_send_json_success($return_values);
+    }
+
+    wp_send_json_error('forbidden', 403);
+}
+
+add_action('wp_ajax_eeco_gift_cards_csv_import', 'eeco_gift_cards_csv_import');

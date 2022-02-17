@@ -1,0 +1,117 @@
+<?php
+
+defined( 'ABSPATH' ) || exit;
+
+class Eeco_Gift_Cards_My_Account {
+
+    /**
+     * bind actions
+     */
+    public function __construct(){
+        $this->endpoints();
+        flush_rewrite_rules();
+
+        add_filter( 'woocommerce_account_menu_items', array($this, 'menu_items') );
+        add_filter( 'woocommerce_endpoint_eeco-gift-cards_title', array($this, 'title'));
+        add_action( 'woocommerce_account_eeco-gift-cards_endpoint', array($this, 'template') );
+        add_filter( 'woocommerce_get_query_vars',array($this, 'query_vars'));
+    }
+
+    /**
+     * Add gift cards page to to woocommerce query vars
+     * 
+     * @param array $vars The current query vars
+     * @return array Filtered query vars
+     * 
+     */
+    function query_vars( $vars ) {
+        $vars['eeco-gift-cards'] = 'eeco-gift-cards';
+        return $vars;
+    } 
+
+    /**
+     * Set the gift cards page title
+     * 
+     * @param string $title The page title
+     * @return string Filtered title
+     */
+    public function title($title){
+        $title = _x('Gift cards', 'My account menu item name', 'eeco-gift-cards');
+
+        return $title;
+    }
+
+    /**
+     * Load the gift cards page template
+     */
+    public function template(){
+        eeco_gift_cards_get_template('my-account/gift-cards.php', array(
+            'online_gift_cards' => $this->get_gift_cards(),
+            'offline_gift_cards' => $this->get_gift_cards('offline_gift_card')
+        ));
+    }
+
+    /**
+     * Add the gift cards page to as a rewrite endpoint
+     */
+    private function endpoints(){
+        add_rewrite_endpoint(sanitize_title(get_option('eeco_gift_cards_myaccount_slug', 'gift-cards')), EP_ROOT | EP_PAGES, 'eeco-gift-cards');
+    }
+
+    /**
+     * Add the gift cards page to woocommerce my account menu items
+     * 
+     * @param array $items Current menu items
+     * @return array Filtered menu items
+     */
+    public function menu_items($items){
+        $logout = $items['customer-logout'];
+
+        unset($items['customer-logout']);
+
+        $items[sanitize_title(get_option('eeco_gift_cards_myaccount_slug', 'gift-cards'))] = _x('Gift cards', 'My account menu item name', 'eeco-gift-cards');
+        $items['customer-logout'] = $logout;
+
+        return $items;
+    }
+
+    /**
+     * Get the current users gift cards 
+     * 
+     * @param string $type The gift card type to query
+     * @return array Array of gift cards
+     */
+    private function get_gift_cards($type = 'online_gift_card'){
+        global $wpdb;
+
+        //get all gift cards that the current user has purchased
+        $sql = "SELECT p.ID  
+            FROM {$wpdb->posts} p
+            LEFT JOIN {$wpdb->posts} p2 on p2.ID = p.post_parent
+            LEFT JOIN {$wpdb->postmeta} pm ON pm.post_id = p2.ID
+            WHERE p.post_type = %s
+            AND pm.meta_key = '_customer_user'
+            AND pm.meta_value = %d";
+
+        $results = $wpdb->get_col($wpdb->prepare($sql, $type, get_current_user_id()));
+
+        //load all the gift card data
+        $posts = get_posts(array(
+            'post_type' => $type ,
+            'post__in' => empty($results) ? array(-1) : $results,
+            'posts_per_page' => -1,
+            'post_status' => array('publish', 'expired')
+        ));
+
+        $gift_cards = array();
+
+        //init gift card instances
+        foreach ($posts as $post) {
+           $gift_cards[] = new Eeco_Gift_Card($post);
+        }
+
+        return $gift_cards;
+    }
+}
+
+new Eeco_Gift_Cards_My_Account();

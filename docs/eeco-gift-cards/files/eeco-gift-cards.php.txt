@@ -1,0 +1,62 @@
+<?php
+
+/**
+* Plugin Name: WooCommerce gift cards
+* Plugin URI: https://www.eeco.fi/
+* Description: Create and sell online and offline gift cards
+* Version: 1.3.1
+* Author: Eeco
+* Author URI: https://www.eeco.fi/
+* Text Domain: eeco-gift-cards
+* Domain Path: /languages/
+**/
+
+defined( 'ABSPATH' ) || exit;
+
+//path for plugin
+define( 'EECO_GIFT_CARDS_PATH', untrailingslashit( plugin_dir_path( __FILE__ ) ) );
+
+define('EECO_GIFT_CARDS_VERSION', '1.3.1');
+define('EECO_GIFT_CARDS_DB_VERSION', '2');
+define('EECO_GIFT_CARDS_ROOT', plugin_dir_path( __FILE__ ));
+
+/**
+ * check for plugin dependencies and deactivate plugin if they don't exist
+ */
+function activate_eeco_gift_cards(){
+    if ( current_user_can( 'activate_plugins' ) && ! class_exists( 'WooCommerce' ) ) {
+
+        deactivate_plugins( plugin_basename( __FILE__ ) );
+
+        $error_message = __('This plugin depends on WooCommerce. Please activate it first', 'eeco-gift-cards');
+        
+        die( $error_message );
+    }
+}
+
+register_activation_hook( __FILE__, 'activate_eeco_gift_cards' );
+
+/**
+ * deactivate plugin
+ */
+function deactivate_eeco_gift_cards() {
+
+}
+
+register_deactivation_hook( __FILE__, 'deactivate_eeco_gift_cards' );
+
+/**
+ * init plugin functionalities
+ */
+function init_eeco_gift_cards(){
+    if(class_exists('WooCommerce')){
+        $plugin_rel_path = basename( dirname( __FILE__ ) ) . '/languages';
+        load_plugin_textdomain( 'eeco-gift-cards', false, $plugin_rel_path );
+
+        include_once EECO_GIFT_CARDS_ROOT . "includes/class-gift-cards-main.php";
+
+        new Eeco_Gift_Cards_Main();
+    }
+}
+
+add_action('init', 'init_eeco_gift_cards');

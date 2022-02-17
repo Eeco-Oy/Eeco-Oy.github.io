@@ -1,0 +1,469 @@
+<?php
+
+defined( 'ABSPATH' ) || exit;
+
+class Eeco_Gift_Cards_Checkout{
+    /**
+     * the gift card currently processing
+     */
+    private $gift_card = null;
+
+    /**
+     * bind actions
+     */
+    public function __construct(){
+        add_filter( 'woocommerce_get_shop_coupon_data', array($this, 'apply_gift_card'), 10, 2 );
+        add_filter( 'woocommerce_order_recalculate_coupons_coupon_object', array($this, 'apply_gift_card_calculation'), 10, 2 );
+        add_filter( 'woocommerce_coupon_is_valid', array($this, 'is_gift_card_valid'), 10, 3 );
+        add_action( 'woocommerce_checkout_update_order_meta', array($this, 'woocommerce_checkout_create_order'), 10);
+        add_filter( 'woocommerce_coupon_message', array($this, 'filter_coupon_message'), 10, 3);
+        add_filter( 'woocommerce_coupon_error', array($this, 'filter_coupon_message'), 10, 3);
+        add_action( 'woocommerce_offline_gift_card_add_to_cart', array($this, 'add_to_cart') );
+        add_action( 'woocommerce_online_gift_card_add_to_cart', array($this, 'add_to_cart') );
+        add_action( 'woocommerce_add_cart_item_data', array($this, 'filter_cart_item_data'), 10, 2);
+        add_action( 'woocommerce_before_calculate_totals', array($this, 'set_price'), 99 );
+        add_action( 'woocommerce_new_order', array($this, 'new_order'), 1, 2);
+        add_filter( 'woocommerce_get_item_data', array($this, 'set_custom_cart_data'), 10, 2 );
+        add_action( 'woocommerce_checkout_create_order_line_item', array($this, 'add_order_item_meta'), 10, 4);
+        add_filter( 'woocommerce_order_item_get_formatted_meta_data', array($this, 'format_meta_data'), 10, 1);
+        add_filter( 'woocommerce_cart_item_price', [$this, 'cart_item_price'], 10, 2);
+    }
+
+    /**
+     * fetches the add to cart template
+     */
+    public function add_to_cart(){
+        global $product;
+
+        $regular = $product->get_recommended_price();
+
+        eeco_gift_cards_get_template('product/add-to-cart.php',
+            array(
+                'product' => $product,
+                'min' => $product->get_min_price(),
+                'max' => $product->get_max_price(),
+                'default' => empty($regular) ? $product->get_regular_price() : $regular
+            )
+        );
+    }
+
+    /**
+     * add price to cart item
+     * 
+     * @param array $cart_item Cart item data
+     * @param int $product_id The product id to add
+     * @return array Cart item data
+     */
+    public function filter_cart_item_data($cart_item, $product_id){
+        $product = wc_get_product($product_id);
+
+        if(in_array($product->get_type(), array('offline_gift_card', 'online_gift_card'))){
+
+            if(isset($_POST['price'])){
+                $cart_item['gift_card_price'] = $_POST['price'];
+            }
+            else{
+                $regular = get_post_meta($product->get_id(), '_gift_card_rec_price', true);
+
+                $cart_item['gift_card_price'] = empty($regular) ? $product->get_regular_price() : $regular;
+            }
+
+            if(isset($_POST['receiver_email'])){
+                $cart_item['receiver_email'] = $_POST['receiver_email'];
+            }
+
+            if(isset($_POST['gift_card_message'])){
+                $cart_item['gift_card_message'] = $_POST['gift_card_message'];
+            }
+
+            if(isset($_POST['gift_card_delivery_date'])){                
+                $cart_item['gift_card_delivery_date'] = eeco_gift_cards_format_date($_POST['gift_card_delivery_date']);
+            }
+
+        }
+
+        return $cart_item;
+    }
+
+    /**
+     * set the correct price on mini cart
+     * 
+     * @param string $html Current price html
+     * @param array $cart_item The cart item
+     * @return string Price html
+     */
+    public function cart_item_price($html, $cart_item){
+        if(!is_cart() && isset($cart_item['gift_card_price'])){
+            $html = '<span class="woocommerce-Price-amount amount">'.wc_price($cart_item['gift_card_price']).'</span>';
+        }
+
+        return $html;
+    }
+
+    /**
+     * set gift card price before calculating totals
+     * 
+     * @param WC_Cart $cart The cart object
+     */
+    public function set_price($cart){
+        if( !WC()->session->__isset( "reload_checkout" )) {
+
+            foreach ( $cart->cart_contents as $value ) {
+
+                if( isset( $value["gift_card_price"] ) ) {
+
+                    $value['data']->set_price($value["gift_card_price"]);
+                }
+            }  
+        }  
+    }
+
+    /**
+     * checks the order for gift cards and generates them
+     * 
+     * @param int $order_id The order id
+     */
+    public function new_order($order_id, $order = null){
+        if($order || $order = wc_get_order($order_id)){
+
+            foreach ($order->get_items() as $item) {
+                $product = $item->get_product();
+
+                if(in_array($product->get_type(), array('offline_gift_card', 'online_gift_card'))){
+                    
+                    $quantity = $item->get_quantity();
+
+                    for ($i=0; $i < $quantity; $i++) { 
+
+                        if(!$this->create_gift_card($item, $order, eeco_gift_cards_create_exipration_date($item, $product))){
+                            $order->add_order_note(__('Failed to generate gift card for this order', 'eeco-gift-cards'));
+                        }
+                    }
+    
+                }
+
+            }
+        }
+    }
+
+    /**
+     * create new gift card and save it to database
+     * 
+     * @param WC_Order_Item_Product $item the order item
+     * @param WC_Order $order Order object
+     * @param string $expiration When card will expire
+     * @return string The post id
+     */
+    public function create_gift_card($item, $order, $expiration){
+        $data = $item->get_data();
+
+        $product = $item->get_product();
+        
+        $total = ($item->get_subtotal()+$data['total_tax'])/$item->get_quantity();
+
+        $random = mt_rand(1000000000, 1999999999);
+
+        $number = $this->generate_gift_card_id($product);
+
+        $email = $item->get_meta('gift_card_receiver_email', true);
+
+        if(!is_email($email)){
+            $email = $order->get_billing_email();
+        }
+
+        $post_args = array(
+            'post_title' => $number,
+            'post_content' => $total,
+            'post_author' => 1,
+            'post_status' => 'publish',
+            'post_type' => $product->get_type(),
+            'post_parent' => $order->get_id(),
+            'meta_input' => array(
+                '_gift_card_number' => $number, 
+                '_gift_card_amount' => $total, 
+                '_gift_card_expires' => $expiration, 
+                '_gift_card_is_active' => true,
+                '_gift_card_used' => 0,
+                '_gift_card_order' => $order->get_id(),
+                '_gift_card_validator' => $random,
+                '_receiver_email' => $item->get_meta('gift_card_receiver_email', true),
+                '_gift_card_message' => $item->get_meta('gift_card_message', true),
+                '_gift_card_delivery_date' => $item->get_meta('gift_card_delivery_date', true)
+            )
+        );
+
+        $post = wp_insert_post($post_args);
+
+        if(is_wp_error($post)){
+            return false;
+        }
+
+        $pdf = create_gift_card_pdf($order, new Eeco_Gift_Card($post));
+
+        add_post_meta($post, "_gift_card_url", $pdf['url']);
+        add_post_meta($post, "_gift_card_path", wp_slash($pdf['path']));
+        add_post_meta($order->get_id(), "_{$product->get_type()}_id", $post);
+
+        return $post;
+    }
+
+    /**
+     * generate gift card id
+     * 
+     * @param WC_Product $product The product
+     * @return int|string The id
+     */
+    public function generate_gift_card_id($product){
+        if(get_option('eeco_gift_cards_id_type') === 'numeric'){
+            $code = (int)get_option('eeco_gift_cards_latest_numeric_code');
+            $min = (int)get_option('eeco_gift_cards_id_range_min');
+
+            if(!$code || $code < $min){
+                $code = $min;
+            }
+            else{
+                $code = $code + 1;
+            }
+
+            update_option('eeco_gift_cards_latest_numeric_code', $code);
+
+            if(get_page_by_title(apply_filters('eeco_gift_cards_code', $code), OBJECT, array('online_gift_card', 'offline_gift_card'))){
+                $this->generate_gift_card_id($product);
+            }
+            else{
+                return apply_filters('eeco_gift_cards_code', $code);
+            }
+
+        }
+        else{
+            $code = substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 1, 12);
+
+            if(get_page_by_title(apply_filters('eeco_gift_cards_code', $code), OBJECT, array('online_gift_card', 'offline_gift_card'))){
+                $this->generate_gift_card_id($product);
+            }
+            else{
+                return apply_filters('eeco_gift_cards_code', $code);
+            }
+        }
+    }
+
+    /**
+     * set custom data to cart item meta
+     * 
+     * @param array $data The item data
+     * @param array $item Cart item
+     * @return array Cart item data
+     */
+    public function set_custom_cart_data($data, $item){
+        if(isset($item['receiver_email']) && !empty($item['receiver_email'])){
+            $data[] = array(
+                'key' => __('Receiver email', 'eeco-gift-cards'),
+                'value' => $item['receiver_email']  
+            );
+        }
+
+        if(isset($item['gift_card_message']) && !empty($item['gift_card_message'])){
+            $data[] = array(
+                'key' => __('Message on the gift card', 'eeco-gift-cards'),
+                'value' => $item['gift_card_message']  
+            );
+        }
+
+        if(isset($item['gift_card_delivery_date']) && !empty($item['gift_card_delivery_date'])){
+            $data[] = array(
+                'key' => __('Delivery date', 'eeco-gift-cards'),
+                'value' => eeco_gift_cards_format_date($item['gift_card_delivery_date'], '-', '.', 'd.m.Y') 
+            );
+        }
+
+        return $data;
+    }
+
+    /**
+     * add meta for order items
+     * 
+     * @param WC_Order_Item $item order item
+     * @param string $cart_item_key The cart item data
+     * @param array $values The data
+     * @param WC_Order $order The order
+     */
+    public function add_order_item_meta($item, $cart_item_key, $values, $order){
+        if ( isset( $values[ 'receiver_email' ] ) ) {
+            $item->update_meta_data( 'gift_card_receiver_email', $values[ 'receiver_email' ] );
+        }
+        if ( isset( $values[ 'gift_card_message' ] ) ) {
+            $item->update_meta_data( 'gift_card_message', $values[ 'gift_card_message' ] );
+        }
+        if ( isset( $values[ 'gift_card_delivery_date' ] ) ) {
+            $item->update_meta_data( 'gift_card_delivery_date', $values[ 'gift_card_delivery_date' ] );
+        }
+    }
+
+    /**
+     * Format meta data of order line items
+     * 
+     * @param array $formatted_data Array of order meta data
+     * @return array Meta data array
+     */
+    public function format_meta_data($formatted_data){
+        foreach ($formatted_data as &$value) {
+            if($value->key == 'gift_card_receiver_email'){
+                $value->display_key = __('Receiver email', 'eeco-gift-cards');
+            }
+            else if($value->key == 'gift_card_message'){
+                $value->display_key = __('Message on the gift card', 'eeco-gift-cards');
+            }
+            else if($value->key == 'gift_card_delivery_date'){
+                $value->display_key = __('Delivery date', 'eeco-gift-cards');
+
+                if($time = strtotime($value->value)){
+                    $value->display_value = '<p>'.date('d.m.Y', $time).'</p/>';
+                }
+            }
+        }
+
+        return $formatted_data;
+    }
+
+    /**
+     * filter coupon success message to fit the gift card theme
+     * 
+     * @param string $msg The message
+     * @param string $code The code
+     * @param WC_Coupon $coupon Coupon object
+     * @return string The message
+     */
+    public function filter_coupon_message($msg, $msg_code, $coupon){
+        $gift_card = $this->get_gift_card($coupon->get_code());
+ 
+        if($gift_card){
+            switch ($msg_code) {
+                case $coupon::WC_COUPON_SUCCESS:
+                    return __('Gift card applied successfully', 'eeco-gift-cards');
+
+                case $coupon::WC_COUPON_REMOVED:
+                    return __('Gift card removed successfully', 'eeco-gift-cards');
+
+                case $coupon::E_WC_COUPON_ALREADY_APPLIED:
+                    return __('Gift card already in use', 'eeco-gift-cards');
+
+                default:
+                    return $msg;
+            }
+        }
+
+        return $msg;
+    }
+
+    /**
+     * apply gift card discount if it exists
+     * 
+     * @param array $coupon_data Coupon data
+     * @param string $coupon_code Code of the coupon
+     * @param boolean|null $calc_taxes Whether to calculate taxes
+     * @return array Coupon data
+     */
+    public function apply_gift_card( $coupon_data, $coupon_code, $calc_taxes = true ){
+        $gift_card = $this->get_gift_card($coupon_code);
+    
+        if ( empty( $coupon_data ) && $gift_card && $gift_card->is_online()) {
+
+            $coupon_data = array(
+				'discount_type'          => 'fixed_cart',
+				'amount'                 => $gift_card->get_value(),
+				'individual_use'         => false,
+				'product_ids'            => array(),
+				'usage_limit'            => 0,
+				'usage_count'            => count($gift_card->get_orders()),
+				'date_expires'           => $gift_card->get_date(),
+				'free_shipping'          => false,
+				'exclude_sale_items'     => false
+			);
+        }
+
+        return $coupon_data;
+    }
+
+    /**
+     * re add gift card when calculating totals
+     * 
+     * @param WC_Coupon $coupon The coupon
+     * @param string $coupon_code The code
+     * @return array The coupon
+     */
+    public function apply_gift_card_calculation($coupon, $coupon_code ){
+        $gift_card = $this->get_gift_card($coupon_code);
+
+        if(eeco_get_gift_card($coupon_code) && $gift_card && $gift_card->is_online()){
+            $data = $this->apply_gift_card( array(), $coupon_code, false );
+
+			$coupon->read_manual_coupon( $coupon_code, $data );
+        }
+
+        return $coupon;
+    }
+
+    /**
+     * checks whether given gift card is valid or not
+     * 
+     * @param boolean $valid Valid or not
+     * @param WC_Coupon $coupon The coupon data
+     * @param array $discounts Current discounts
+     * @return boolean Whether valid
+     */
+    public function is_gift_card_valid($valid, $coupon, $discounts){
+        if($gift_card = $this->get_gift_card($coupon->get_code())){
+
+            if($gift_card->has_expired() || !$gift_card->is_online() || !$gift_card->is_active()){
+                return false;
+            }
+            else if(!$gift_card->has_value()){
+                throw new Exception(__('This gift card has not value remaining', 'eeco-gift-cards'));
+            }
+        }
+
+        return $valid;
+
+    }
+
+    /**
+     * link used gift cards to the order
+     * 
+     * @param int $order_id The order id
+     */
+    public function woocommerce_checkout_create_order($order_id){
+
+        $order = wc_get_order($order_id);
+
+        $coupons = $order->get_coupons();
+
+        foreach ($coupons as $coupon) {
+            $gift_card = eeco_get_gift_card($coupon->get_code());
+
+            if($gift_card && $gift_card->is_online()){
+                $coupon->add_meta_data('_used_online_gift_card_id', $gift_card->get_id(), true);
+
+                $coupon->save_meta_data();
+
+                $gift_card->add_order($order, $coupon);
+            }
+        }
+
+    }
+
+    /**
+     * load the gift card from current instance or attempt to fetch from database
+     * 
+     * @param string $code Gift card code
+     * @return Eeco_Gift_Card
+     */
+    private function get_gift_card($code){
+        if($this->gift_card instanceof Eeco_Gift_Card  && $this->gift_card->get_code() == $code){
+            return $this->gift_card;
+        }
+
+        return eeco_get_gift_card($code);
+    }
+}
+
+new Eeco_Gift_Cards_Checkout();

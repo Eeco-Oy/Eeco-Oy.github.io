@@ -1,0 +1,200 @@
+<?php 
+
+defined( 'ABSPATH' ) || exit;
+
+if( ! class_exists( 'WP_List_Table' ) ) {
+    require_once( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
+}
+
+class Eeco_Gift_Cards_Reports_Table extends WP_List_Table {
+
+    /** 
+     * constructing
+     */
+    public function __construct(){
+        parent::__construct(array(
+            'plural' => __('Reports', 'eeco-gift-cards'),
+            'singular' => __('Report', 'eeco-gift-cards')
+        ));
+    }
+
+    /**
+     * add extra filter for the table
+     * 
+     * @param string $which Whether top or bottom filters
+     */
+    protected function extra_tablenav($which){
+        $start = isset($_GET['start_date']) && $_GET['start_date'] ? date('d.m.Y', strtotime($_GET['start_date'])) : '';
+        $end = isset($_GET['end_date']) && $_GET['end_date'] ? date('d.m.Y', strtotime($_GET['end_date'])) : '';
+        $per_page = isset($_GET['posts_per_page']) ? $_GET['posts_per_page'] : 10;
+
+        if($which == 'top'){
+            ?>
+                <div class="alignleft actions">
+                    <input type="text" id="start_date" value="<?php echo $start?>" placeholder="<?php _e('Start date', 'eeco-gift-cards') ?>"> - <input type="text" id="end_date" value="<?php echo $end ?>" placeholder="<?php _e('End date', 'eeco-gift-cards') ?>">
+                    <input type="hidden" name="start_date" value="<?php echo isset($_GET['start_date']) ? $_GET['start_date'] : ''; ?>">
+                    <input type="hidden" name="end_date" value="<?php echo isset($_GET['end_date']) ? $_GET['end_date'] : ''; ?>">
+                    <select name="posts_per_page">
+                        <option value="10" <?php selected($per_page, 10) ?>><?php _e('Rows per page', 'eeco-gift-cards') ?></option>
+                        <option value="50" <?php selected($per_page, 50) ?>><?php _e('50', 'eeco-gift-cards') ?></option>
+                        <option value="100" <?php selected($per_page, 100) ?>><?php _e('100', 'eeco-gift-cards') ?></option>
+                        <option value="500" <?php selected($per_page, 500) ?>><?php _e('500', 'eeco-gift-cards') ?></option>
+                    </select>
+                    <input type="submit" class="button" value="<?php _e('Filter', 'eeco-gift-cards') ?>">
+                    <button type="submit" class="button" name="gift_card_csv" value="usage"><?php _e('Download csv', 'eeco-gift-cards') ?></button>
+                </div>
+            <?php
+        }
+    }
+
+    /**
+     * prepare the table and fetch data
+     */
+    public function prepare_items(){
+        $columns = $this->get_columns();
+        $sortable = $this->get_sortable_columns();
+
+        $data = $this->get_data();
+        usort( $data['items'], array( &$this, 'sort_data' ) );
+
+        $this->set_pagination_args( array(
+            'total_items' => $data['total'],
+            'per_page'    => $this->get_limit()
+        ) );
+
+        $this->_column_headers = array($columns, array(), $sortable);
+        $this->items = $data['items'];
+    }
+
+    /**
+     * returns columns for the table
+     */
+    public function get_columns(){
+        return array(
+            'ID' => _x('ID', 'Admin column', 'eeco-gift-cards'),
+            'order_id' => _x('Order id', 'Admin column', 'eeco-gift-cards'),
+            'gift_card_number' => _x('Gift card number', 'Admin column', 'eeco-gift-cards'),
+            'validation_number' => _x('Validation number', 'Admin column', 'eeco-gift-cards'),
+            'value_used' => _x('Value used', 'Admin column', 'eeco-gift-cards'),
+            'taxes' => _x('Tax', 'Admin column', 'eeco-gift-cards'),
+        );
+    }
+
+    /**
+     * returns sortable columns
+     */
+    public function get_sortable_columns(){
+        return array(
+            'ID' => array('ID', true), 
+            'order_id' => array('order_id', true), 
+            'value_used' => array('amount', true), 
+            'taxes' => array('tax', true)
+        );
+    }
+
+    /**
+     * returns current page
+     * 
+     * @return int The offset
+     */
+    public function get_offset(){
+        $offset = 0;
+
+        if(isset($_REQUEST['paged'])){;
+            $page = $_REQUEST['paged'];
+
+            $offset = $page == 1 ? 0 : ($page-1) * $this->get_limit();
+        }
+
+        return $offset;
+    }
+
+    /**
+     * returns how many items per page to show
+     * 
+     * @return int Per page limit
+     */
+    public function get_limit(){
+        $per_page = 10;
+
+        if(isset($_REQUEST['posts_per_page'])){
+            $per_page = $_REQUEST['posts_per_page'];
+        }
+
+        return $per_page;
+    }
+
+     /**
+     * returns current table data
+     * 
+     * @return array Results of the db query
+     */
+    public function get_data(){
+        return Eeco_Gift_Cards_Reports::get_transactions(
+            $this->get_offset(), 
+            $this->get_limit(), 
+            $this->get_order_by_order(), 
+            $this->get_order_by_column()
+        );
+    }
+    
+    /**
+     * set column data
+     * 
+     * @param object $item Row item
+     * @param string $column_name Name of the column
+     * @return string Column value
+     */
+    public function column_default( $item, $column_name ){
+        
+        switch( $column_name ) {
+            case 'ID':
+                return $item->id;
+            case 'order_id':
+               return '<a class="gift-card-order-link" href="' . get_edit_post_link($item->order_id). '">' . $item->order_id . '</a>';
+            case 'gift_card_number':
+                return $item->post_title;
+            case 'validation_number':
+                return $item->validator;
+            case 'value_used':
+                return eeco_gift_cards_format_price($item->amount);
+            case 'taxes':
+                return eeco_gift_cards_format_price($item->tax);
+            default:
+                return print_r( $item, true ) ;
+        }
+    }
+
+    /**
+     * get the column to order by
+     * 
+     * @return string
+     */
+    private function get_order_by_column(){
+        $orderby = 'ID';
+
+        if(!empty($_GET['orderby'])){
+            $orderby = $_GET['orderby'];
+        }
+
+        return $orderby;
+    }
+
+    /**
+     * get the order
+     * 
+     * @return string
+     */
+    private function get_order_by_order(){
+        $order = 'DESC';
+
+        // If order is set use this as the order
+        if(!empty($_GET['order'])){
+            $order = $_GET['order'];
+        }
+
+        return $order;
+    }
+
+
+}

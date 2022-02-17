@@ -1,0 +1,17 @@
+<?php
+
+// if uninstall.php is not called by WordPress, die
+if (!defined('WP_UNINSTALL_PLUGIN')) {
+    die;
+}
+
+global $wpdb;
+
+//removing every post with post type of gwp_campaign
+$wpdb->query( "DELETE FROM {$wpdb->posts} WHERE post_type IN ('online_gift_card', 'offline_gift_card');" );
+$wpdb->query( "DELETE meta FROM {$wpdb->postmeta} meta LEFT JOIN {$wpdb->posts} posts ON posts.ID = meta.post_id WHERE posts.ID IS NULL;" );
+$wpdb->query( "DELETE FROM $wpdb->options WHERE option_name LIKE 'eeco_gift_cards\_%';" );
+
+//drop custom table
+$table_name = $wpdb->prefix . 'gift_card_transaction';
+$wpdb->query( "DROP TABLE IF EXISTS $table_name" );
