@@ -1,0 +1,35 @@
+<?php
+
+/**
+ * get custom payment gateway settings with defaults
+ * 
+ * @return array
+ */
+function eeco_smartum_get_payment_gateway_settings(){
+    return [
+        'eeco_smartum_is_venue_valid' => [
+            'default' => ''
+        ],
+        'eeco_smartum_is_venue_invalid_message' => [
+            'default' => ''
+        ],
+        'eeco_smartum_valid_benefits' => [
+            'default' => []
+        ]
+    ];
+}
+
+/**
+ * Returns a list of smartum benefit types and the translations
+ * 
+ * @return array Benefits
+ */
+function eeco_smartum_benefit_types(){
+    return [
+        'exercise' => __('Exercise','wc-smartum-gateway'),
+        'culture' => __('Culture','wc-smartum-gateway'),
+        'lunch' => __('Lunch','wc-smartum-gateway'),
+        'commuter' => __('Commuter','wc-smartum-gateway'),
+        'massage' => __('Massage','wc-smartum-gateway'),
+    ];
+}

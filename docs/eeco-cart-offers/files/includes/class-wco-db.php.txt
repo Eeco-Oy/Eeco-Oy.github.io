@@ -1,0 +1,173 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+    die();
+}
+
+
+class Eeco_WCO_DB {
+
+    /**
+     * the offer table name
+     */
+    private $offer_table = 'eeco_wco_offers';
+
+    /**
+     * the offer product table
+     */
+    private $product_table = 'eeco_wco_products';
+
+    /**
+     * update database
+     */
+    public function update_db(){
+        if(EECO_WCO_DB_VERSION !== get_option('eeco_wco_table_version')){
+            global $wpdb;
+
+            require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+
+            $table_name = $wpdb->prefix . $this->offer_table;
+
+            $charset_collate = $wpdb->get_charset_collate();
+
+            $table_sql = "CREATE TABLE $table_name (
+                id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                post_id BIGINT(20) UNSIGNED NOT NULL UNIQUE,
+                user_id BIGINT(20) UNSIGNED NOT NULL,
+                order_id BIGINT(20) UNSIGNED UNIQUE,
+                offer_type VARCHAR(256) NOT NULL,
+                offer_taxes VARCHAR(256) NULL,
+                offer_value FLOAT,
+                offer_status VARCHAR(256) NULL,
+                offer_coupon VARCHAR(256) NULL,
+                coupon_date DATE NULL,
+                expiry_date DATE NULL,
+                offer_given DATE NULL
+            ) $charset_collate;";
+
+            dbDelta( $table_sql );
+
+            $tablename = $wpdb->prefix . $this->product_table;
+
+            $tablesql = "CREATE TABLE $tablename (
+                id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                post_id BIGINT(20) UNSIGNED NOT NULL,
+                product_id BIGINT(20) UNSIGNED NOT NULL,
+                product_quantity BIGINT(20) UNSIGNED NOT NULL,
+                line_total FLOAT,
+                tax_total FLOAT
+            ) $charset_collate;";
+
+            dbDelta( $tablesql );
+
+            update_option( "eeco_wco_table_version", EECO_WCO_DB_VERSION );
+        }
+    }
+
+    /**
+     * Create an offer to database
+     * 
+     * @param int $post_id id of a post
+     * @param int $user_id id of a user
+     * @param string $type of an offer
+     * @param string $taxes coupon taxes to taxable or tax free price
+     * @param float $value float of offer value
+     * @param string $status status of an offer
+     * @param string $expiry_date expiry date of an offer
+     * @return bool true || false if offer created
+     */
+    public function create_offer($post_id, $user_id, $type, $taxes, $value, $status, $expiry_date){
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . $this->offer_table;
+
+        $result = $wpdb->insert(
+            $table_name,
+            [
+                'post_id' => $post_id,
+                'user_id' => $user_id,
+                'offer_type' => $type,
+                'offer_taxes' => $taxes,
+                'offer_value' => $value,
+                'offer_status' => $status,
+                'coupon_date' => date('c'),
+                'expiry_date' => $expiry_date
+            ],
+            ['%s', '%s', '%s', '%s', '%s', '%s', '%s']
+        );
+        return $result;
+    }
+
+    /**
+     * Add a product for offer
+     * @param int $post_id id of an offer
+     * @param int $product_id id of the product
+     * @param int $quantity quantity of product wanted
+     * @param float $total total price of line total in cart
+     * @param float $tax total tax of line in cart
+     * @return bool true || false if product successfully added to offer
+     */
+    public function add_product($post_id, $product_id, $quantity, $total, $tax) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . $this->product_table;
+
+        $result = $wpdb->insert(
+            $table_name,
+            [
+                'post_id' => $post_id,
+                'product_id' => $product_id,
+                'product_quantity' => $quantity,
+                'line_total' => $total,
+                'tax_total' => $tax
+            ],
+            ['%s', '%s', '%s', '%s', '%s']
+        );
+
+        return $result;
+    }
+
+    /**
+     * Get an offer
+     * @param int $post_id offer id
+     * @return array Offer data
+     */
+    public function get_offer($post_id){
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . $this->offer_table;
+
+        $result = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $table_name WHERE post_id = %d", $post_id)
+        );
+        return $result;
+    }
+    
+    /**
+     * Edit an offer
+     * @param int $post_id id of offer to edit
+     * @param int $user_id id of user attached to offer
+     * @param string $type type of offer
+     * @param string $taxes coupon taxes to taxable or tax free price
+     * @param float $value value of the offer
+     * @return bool true || false if offer updated or not
+     */
+    public function edit_offer($post_id, $user_id, $type, $taxes, $value){
+        global $wpdb;
+        $table_name = $wpdb->prefix . $this->offer_table;
+        
+        $result = $wpdb->update(
+            $table_name,
+            [
+                'post_id' => $post_id,
+                'user_id' => $user_id,
+                'offer_type' => $type,
+                'offer_taxes' => $taxes,
+                'offer_value' => $value
+            ],
+            array('post_id' => $post_id)
+        );
+
+        return $result;
+    }
+
+}

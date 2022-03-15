@@ -1,0 +1,362 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+    die();
+}
+
+//handle cart page stuff
+class Eeco_WCO_cart {
+
+    private $coupon_code;
+    
+    private $coupon;
+
+    function __construct(){
+        add_action( get_option('wco_cta_position'), array($this, 'add_cart_form'));    
+        add_action( 'wp_enqueue_scripts', array($this, 'add_assets'), 100 );
+        add_action( 'woocommerce_after_cart_item_quantity_update', array($this, 'wco_check_cart_items'), 20, 4);
+        add_action( 'woocommerce_cart_item_removed', array($this, 'wco_check_cart_items_remove'), 10, 2 );
+        add_action( 'woocommerce_checkout_order_processed', array($this, 'checkout_processed'), 10, 3);
+        add_filter( 'woocommerce_get_shop_coupon_data', array($this, 'apply_coupon'), 10, 2 );
+        add_filter( 'woocommerce_order_recalculate_coupons_coupon_object', array($this, 'apply_coupon_calculation'), 10, 2 );
+        add_action( 'woocommerce_before_calculate_totals', array($this,'custom_price_to_cart_item'), 99 );
+    }
+
+  
+    /**
+     * Custom price for cart item if needed
+     * @param object $cart_object WooCommerce cart object
+     */
+    function custom_price_to_cart_item( $cart_object ) {  
+        foreach ( $cart_object->cart_contents as $key => $value ) {
+            if( isset( $value["custom_price"] ) ) {
+                $value['data']->set_price($value["custom_price"]);
+            }
+        }  
+    }
+
+    /**
+     * apply gift card discount if it exists
+     * @param array $coupon_data Coupon data
+     * @param string $coupon_code Code of the coupon
+     * @param boolean $calc_taxes Whether to calculate taxes or not
+     * @return array Coupon data
+     */
+    public function apply_coupon( $coupon_data, $coupon_code, $calc_taxes = true ){
+
+        if($this->coupon_code == $coupon_code){
+            return $this->coupon;
+        }
+
+        $offer = wco_get_offer_by_coupon($coupon_code);
+    
+        if($offer && get_current_user_id()){
+            $amount = $offer->offer_value;
+            if ($offer->offer_type == 'price' && $offer->offer_taxes == 'tax-free') {
+                $cart = WC()->cart;
+
+                $amount = $cart->subtotal / $cart->subtotal_ex_tax * $amount;
+            }
+
+            $discount_type = $offer->offer_type == 'price' ? 'fixed_cart' : 'percent';
+
+            $coupon_data = array(
+                'discount_type'          => $discount_type,
+                'amount'                 => $amount,
+                'individual_use'         => true,
+                'product_ids'            => array(),
+                'usage_limit'            => 0,
+                'usage_count'            => 1,
+                'free_shipping'          => false,
+                'exclude_sale_items'     => false
+            );
+            
+            /**
+             * Change cart totals-section label if coupon part of cart offers
+             */
+            add_filter( 'woocommerce_cart_totals_coupon_label', function() { return  _e('Quote discount:', 'eeco-wco'); });
+
+            $this->coupon_code = $coupon_code;
+
+            $this->coupon = $coupon_data;
+        }
+
+        return $coupon_data;
+    }
+    /**
+     * re add gift card when calculating totals
+     * @param array $coupon the coupon
+     * @param string $coupon_code the coupon code
+     * @return array The coupon
+     */
+    public function apply_coupon_calculation($coupon, $coupon_code ){
+        $offer = wco_get_offer_by_coupon($coupon_code);
+
+        if($offer && get_current_user_id()){
+            $data = $this->apply_coupon( array(), $coupon_code, false );
+
+			$this->$coupon->read_manual_coupon( $coupon_code, $data );
+        }
+        /**
+         * Change cart totals-section label if coupon part of cart offers
+         */
+        add_filter( 'woocommerce_cart_totals_coupon_label', function() { return  _e('Quote discount:', 'eeco-wco'); });
+
+        return $coupon;
+    }
+
+    
+    /**
+     * Check if coupon used in cart, if used set offer inactive/used
+     * @param object WooCommerce order object
+     */
+    function checkout_processed($order_id, $posted_data, $order){
+        // get all coupons in cart
+		$used_coupons = $order->get_items('coupon');
+
+		// run through for each coupons used in cart
+		foreach($used_coupons as $coupon){
+            if(wco_get_offer_by_coupon($coupon['code'])) {
+                wco_set_coupon_inactive($coupon['code'], $order_id);
+            }
+		}	
+    }
+
+    /**
+     * Cancel cart removal if item part of the cart offer
+     * @param int $cart_item_key key of WooCommerce cart item
+     * @param object WooCommerce cart object
+     */
+    function wco_check_cart_items_remove( $cart_item_key, $cart ){   
+        if( $cart->get_coupons() ){
+            $coupons = $cart->get_applied_coupons();
+
+            foreach($coupons as $coupon){
+                if(wco_get_offer_by_coupon($coupon)){
+                    $cart->restore_cart_item($cart_item_key);
+
+                    add_filter( 'woocommerce_cart_item_removed_title', array($this,'removed_from_cart_title'), 12, 2);
+
+                    return;
+                }
+            }
+        }
+    } 
+    /**
+     * Change notice after deletion failed
+     * @return string Notice
+     */
+    function removed_from_cart_title(){
+        $message = __('You have to delete coupon code in order to delete cart item. Cart item not', 'eeco-wco');
+
+        return $message;
+    }
+    /*
+    *  Check if cart items correct
+    */
+    /**
+     * Check if cart items correct
+     * @param int $cart_item_key key of cart item
+     * @param int $quantity quantity of cart item in cart
+     * @param object WooCommerce cart object
+     */
+    function wco_check_cart_items( $cart_item_key, $quantity, $old_quantity, $cart ){    
+        // Here the quantity limit    
+        $product_id = $cart->cart_contents[ $cart_item_key ]['product_id'];
+
+        if( WC()->cart->get_coupons() ){
+            $coupons = WC()->cart->get_applied_coupons();
+
+            foreach($coupons as $coupon){
+
+                if($products = wco_get_coupon_products($coupon)){
+                    foreach($products as $product){
+                        if($product->product_id == $product_id){
+                            $limit = $product->product_quantity;
+                        }
+                    }
+                    if( $quantity != $limit ){
+                        // Change the quantity to the limit allowed
+                        $cart->cart_contents[ $cart_item_key ]['quantity'] = $limit;
+                        // Add a custom notice
+                        wc_add_notice( __('You have to delete coupon code in order to edit cart.', 'eeco-wco'), 'notice' );
+
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Add a contact form to cart page
+     * @return void
+     */
+    public function add_cart_form(){
+        if(is_cart() && !WC()->cart->get_applied_coupons() && get_current_user_id()){
+
+            $user = wp_get_current_user();
+
+            $allowed_roles = get_option('wco_allowed_roles');
+
+            //Check if current user has a role that is allowed to ask for quotations
+            if ( !empty($allowed_roles) && empty(array_intersect($user->roles, $allowed_roles)) ) {
+                return false;
+            }
+
+            $allowed_groups = get_option('wco_allowed_groups');
+
+            //Check if current user belongs to a groups that is allowed to ask for quotations
+            if(function_exists('bgh_wg_get_groups_for_user') && !empty($allowed_groups)){
+                $users_groups = bgh_wg_get_groups_for_user(get_current_user_id(), true, true);
+
+                if(empty(array_intersect($allowed_groups, $users_groups))){
+                    return false;
+                }
+            }
+
+            /**
+             * Whether the current cart is valid
+             * 
+             * @param boolean $is_valid Result of the validation function
+             * @return boolean Is cart valid
+             */
+            if(apply_filters( 'wco_is_cart_valid', $this->is_valid_cart())){
+                eeco_wco_get_template('cart/cart-form.php', array(
+                    'user' => wp_get_current_user()
+                ));
+            }
+        }
+    }
+
+    /**
+     * Validate cart contents
+     * 
+     * @return boolean Whether cart is valid
+     */
+    public function is_valid_cart(){
+        $operator = get_option('wco_product_conditions_rule');
+        $conditions = array_values(get_option('wco_product_conditions'));
+
+        //Validate cart against the product conditions
+        foreach( WC()->cart->get_cart() as $cart_item ){
+            foreach ($conditions as $key => $condition) {
+                $conditions_met = true;
+                
+                //If condition type is product
+                if($condition[0] === 'product'){
+                    
+                    if($condition[1] == 'includes' && !in_array((String)$cart_item['data']->get_id(), $condition[2])){
+                        $conditions_met = false;
+                    }
+                    else if($condition[1] == 'excludes' && in_array($cart_item['data']->get_id(), $condition[2])){
+                        $conditions_met = false;
+                    }
+                }
+                //If condition type is a taxonomy
+                else{
+                    $has_term = has_term($condition[2], $condition[0], $cart_item['data']->get_id());
+        
+                    if($condition[1] === 'includes' && !$has_term){
+                        $conditions_met = false;
+                    }
+                    else if($condition[1] == 'excludes' && $has_term){
+                        $conditions_met = false;
+                    }
+                }
+
+                //Handle the validation results
+                if(!$conditions_met && $operator === 'and'){
+                    return false;
+                }
+                else if($conditions_met && $operator === 'or'){
+                    break;
+                }
+                else if($operator === 'or' && count($conditions) === $key+1){
+                    return false;
+                }
+            }
+        }
+
+        $cart_operator = get_option('wco_cart_conditions_rule');
+        $cart_conditions = array_values(get_option('wco_cart_conditions'));
+
+        //Validate cart totals against cart conditions
+        foreach ($cart_conditions as $key => $condition) {
+            $conditions_met = true;
+            
+            //Get the cart value to check against
+            switch ($condition[0]) {
+                case 'subtotal_incl':
+                    $condition_value = WC()->cart->get_subtotal() + WC()->cart->get_subtotal_tax();
+                    break;
+                case 'subtotal_excl':
+                    $condition_value = WC()->cart->get_subtotal();
+                    break;
+                case 'products':
+                    $condition_value = array_sum(WC()->cart->get_cart_item_quantities());
+                    break;
+                case 'unique_products':
+                    $condition_value = count(WC()->cart->get_cart());
+                    break;
+                default:
+                    return false;
+            }
+
+            //Validate the cart value
+            switch ($condition[1]) {
+                case 'gt':
+                    $conditions_met = $condition_value > floatval($condition[2]) ? true : false;
+                    break;
+                case 'gte':
+                    $conditions_met = $condition_value >= floatval($condition[2]) ? true : false;
+                    break;
+                case 'lt':
+                    $conditions_met = $condition_value < floatval($condition[2]) ? true : false;
+                    break;
+                case 'lte':
+                    $conditions_met = $condition_value <= floatval($condition[2]) ? true : false;
+                    break;
+                case 'eq':
+                    $conditions_met = $condition_value === floatval($condition[2]) ? true : false;
+                    break;
+                default:
+                    return false;
+            }
+
+            //Handle the validation results
+            if(!$conditions_met && $cart_operator === 'and'){
+                return false;
+            }
+            else if($conditions_met && $cart_operator === 'or'){
+                break;
+            }
+            else if($cart_operator === 'or' && count($cart_conditions) === $key+1){
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * add assets for the cart
+     * @return void
+     */
+    public function add_assets(){
+        if(is_cart() && get_current_user_id()){
+
+            wp_enqueue_script( 'eeco_wco_cart_script', plugin_dir_url( __DIR__ ).'assets/js/cart.js', array(), EECO_WCO_VERSION );
+            wp_enqueue_style('eeco_wco_cart_style', plugin_dir_url( __DIR__ ).'assets/css/cart.css', false, EECO_WCO_VERSION );
+
+            wp_localize_script( 'eeco_wco_cart_script', 'eeco_wco_object',
+                array( 
+                    'ajax_url'  => admin_url( 'admin-ajax.php' ),
+                    'nonce'     => wp_create_nonce( 'cart-nonce' ),
+                    'required_text' => __('Check all required fields', 'eeco-wco')
+                ) 
+            );
+        }
+    }
+}
+

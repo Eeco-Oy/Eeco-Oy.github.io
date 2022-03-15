@@ -1,0 +1,240 @@
+<?php
+
+defined( 'ABSPATH' ) || exit;
+
+ class Eeco_WCO_Offer_Table {
+    private $offer = null;
+
+    private $offer_id = null;
+
+    private $offer_products = null;
+
+	/**
+     * do initializing
+     */
+    public function __construct() {
+        add_action( 'manage_wco_offer_posts_custom_column' , array($this, 'custom_column_values'), 1, 2 );
+        add_filter( 'manage_wco_offer_posts_columns', array($this, 'custom_columns') );
+        add_filter( 'post_row_actions', array($this, 'wco_remove_actions'), 10, 2 );
+        add_filter( 'bulk_actions-edit-wco_offer', array($this, 'edit_bulk_actions'), 10, 1 );
+        add_filter( 'months_dropdown_results', '__return_empty_array');
+        add_action( 'restrict_manage_posts', array($this, 'wco_extra_tablenav') );
+        add_action( 'parse_query', array($this, 'wco_posts_table_filter') );
+        add_filter( 'posts_join', array($this, 'wco_posts_table_join'), 10, 1);
+        add_filter( 'posts_where', array($this, 'wco_posts_table_where'), 20, 1);
+    }
+
+    /**
+     * Add the data to the custom columns for the book post type
+     * @param array $column column
+     * @param int $post_id id of a post type post
+     */
+    public function custom_column_values( $column, $post_id ) {
+        if(!$this->offer || $post_id !== $this->offer_id){
+            $this->offer = wco_get_offer($post_id);
+            $this->offer_products = wco_get_offer_products($post_id);
+            $this->offer_id = $post_id;
+        }
+
+        if ( !$this->offer ){
+            echo '-';
+            return;
+        }
+        switch ( $column ) {
+            case 'status' :
+                    if($this->offer->offer_status == 'admin_declined'){
+                        echo('<p class="wco_status wco_declined">'. __('Admin declined', 'eeco-wco') . '</p>');
+                    }elseif($this->offer->offer_status == 'customer_declined'){
+                        echo('<p class="wco_status wco_declined">'. __('Customer declined', 'eeco-wco') . '</p>');
+                    }elseif($this->offer->offer_status == 'pending'){
+                        echo('<p class="wco_status wco_pending">'. __('Pending Shop Manager', 'eeco-wco') . '</p>');
+                    }elseif($this->offer->offer_status == 'active'){
+                        echo('<p class="wco_status wco_active">'. __('Quote Active', 'eeco-wco') . '</p>');
+                    }elseif($this->offer->offer_status == 'inactive'){
+                        echo('<p class="wco_status wco_inactive">'. __('Converted to Order', 'eeco-wco'). '</p>');
+                    }elseif($this->offer->offer_status == 'canceled'){
+                        echo('<p class="wco_status wco_canceled">'. __('Canceled by customer', 'eeco-wco'). '</p>');
+                    } elseif ($this->offer->offer_status == 'expired') {
+                        echo('<p class="wco_status wco_canceled">'. __('Expired', 'eeco-wco'). '</p>');
+                    } else {
+                        echo('<p class="wco_status wco_declined">'. $this->offer->offer_status . '</p>');   
+                    }
+                break;
+            case 'cart_value':
+                $total_value = 0;
+
+                foreach ($this->offer_products as $product) {
+                    $total_value += ($product->line_total + $product->tax_total);
+                }
+
+                echo wc_price($total_value);
+                break;
+            case 'unique_in_cart':
+                echo count($this->offer_products);
+                break;
+            case 'products_in_cart':
+                $total_products = 0;
+
+                foreach ($this->offer_products as $product) {
+                    $total_products += $product->product_quantity;
+                }
+                echo $total_products;
+                break;
+            case 'request_date':
+                echo date(get_option('date_format'), strtotime($this->offer->coupon_date));
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Add the custom columns to the post type
+     * @param array $columns array of columns
+     * @return array updated column array
+     */
+    public function custom_columns($columns) {
+        unset($columns['date']);
+        $columns['status'] = __( 'Status', 'eeco-wco' );
+        $columns['title'] = __( 'Email', 'eeco-wco' );
+        $columns['cart_value'] = __( 'Cart value', 'eeco-wco' );
+        $columns['unique_in_cart'] = __( "SKU's in cart", 'eeco-wco' );
+        $columns['products_in_cart'] = __( 'Products in cart', 'eeco-wco' );
+        $columns['request_date'] = __( 'Quote request date', 'eeco-wco' );
+
+        $customOrder = array('cb','title','request_date','cart_value','unique_in_cart','products_in_cart','status');
+
+        foreach($customOrder as $colname) {
+            $new[$colname] = $columns[$colname];
+        }
+        return $new;
+    }
+    /**
+     * Filters the array of row action links on the Quote Requests list table.
+     * @param string[] $actions An array of row action links. Defaults are 'Edit', 'Quick Edit', 'Restore', 'Trash', 'Delete Permanently', 'Preview', and 'View'.
+     * @param WP_Post $post The post object.
+     */
+    public function wco_remove_actions( $actions, $post ) {
+        if( $post->post_type == 'wco_offer' ) {
+            unset( $actions['inline hide-if-no-js'] );
+        }
+        return $actions;
+    }
+
+    /**
+     * Filters the items in the bulk actions menu of the list table.
+     * @param array $actions An array of the available bulk actions. 
+     * 
+     */
+    public function edit_bulk_actions($actions) {
+        unset($actions['edit']);
+        return $actions;
+    }
+
+
+    /**
+     * Add dates filter to wco_offer table list
+     */
+    public function wco_extra_tablenav() {
+        $type = 'post';
+        if (isset($_GET['post_type'])) {
+            $type = $_GET['post_type'];
+        }
+        if ('wco_offer' == $type) {
+            $start = isset($_GET['start_date']) && $_GET['start_date'] ? date('d.m.Y', strtotime($_GET['start_date'])) : '';
+            $end = isset($_GET['end_date']) && $_GET['end_date'] ? date('d.m.Y', strtotime($_GET['end_date'])) : '';
+            $current_v = isset($_GET['quote_status_filter']) ? $_GET['quote_status_filter'] : '';
+            
+            $values = array(
+                'admin_declined' => __('Admin declined', 'eeco-wco'), 
+                'customer_declined' => __('Customer declined', 'eeco-wco'),
+                'pending' => __('Pending Shop Manager', 'eeco-wco'),
+                'active' => __('Quote Active', 'eeco-wco'),
+                'inactive' => __('Converted to Order', 'eeco-wco'),
+                'canceled' => __('Canceled by customer', 'eeco-wco'),
+                'expired' => __('Expired', 'eeco-wco')
+            ); ?>
+
+            <input type="text" id="start_date" name="start_date" value="<?php echo $start?>" placeholder="<?php _e('Start date', 'eeco-wco') ?>"> - <input type="text" id="end_date" name="end_date" value="<?php echo $end ?>" placeholder="<?php _e('End date', 'eeco-wco') ?>">
+            <select name="quote_status_filter">
+                <option value=""><?php echo _x('All statuses', 'Admin list filter', 'eeco-wco'); ?></option>
+                <?php
+                    foreach ($values as $key => $value) {
+                        ?>
+                            <option value="<?php echo $key ?>" <?php selected( $current_v, $key )?>><?php echo $value ?></option>
+                        <?php
+                    }
+                ?>
+            </select>
+            <?php
+        }
+    }
+
+    /**
+     * Filter posts in posts table
+     * 
+     * @param object $query WP_Query The WP_Query instange
+     */
+    public function wco_posts_table_filter( $query ){
+        global $pagenow;
+        $type = 'post';
+        if (isset($_GET['post_type'])) {
+            $type = $_GET['post_type'];
+        }
+        if ( 'wco_offer' == $type && is_admin() && $pagenow=='edit.php' && isset($_GET['start_date']) && isset($_GET['end_date']) && isset($_GET['quote_status_filter'])) {
+            $args = array('inclusive' => true);
+            if (!empty($_GET['start_date'])) {
+                $args['after'] = $_GET['start_date'];
+            }
+            if (!empty($_GET['end_date'])) {
+                $args['before'] = $_GET['end_date'];
+            }
+            if (!empty($_GET['quote_status_filter'])) {
+                
+            }
+            $query->query_vars['date_query'] = array($args);
+        }
+    }
+
+    /**
+     * Filters the JOIN clause of the query.
+     * @param string $join The JOIN clause of the query
+     * @param WP_Query The WP_Query instange
+     */
+    public function wco_posts_table_join($join) {
+        global $pagenow, $wpdb;
+        $type = 'post';
+        if (isset($_GET['post_type'])) {
+            $type = $_GET['post_type'];
+        }
+        if ( 'wco_offer' == $type && is_admin() && $pagenow=='edit.php' && isset($_GET['quote_status_filter'])) {
+            if (!empty($_GET['quote_status_filter'])) {
+                $join .= "LEFT JOIN {$wpdb->prefix}eeco_wco_offers offers ON $wpdb->posts.ID = offers.post_id";
+
+            }
+        }
+        return $join;
+    }
+
+    /**
+     * Filters the WHERE clause of the query.
+     * @param string $where The WHERE clause of the query
+     * @param WP_Query The WP_Query instange
+     */
+    public function wco_posts_table_where($where) {
+        global $pagenow, $wpdb;
+        $type = 'post';
+        if (isset($_GET['post_type'])) {
+            $type = $_GET['post_type'];
+        }
+        if ( 'wco_offer' == $type && is_admin() && $pagenow=='edit.php' && isset($_GET['quote_status_filter'])) {
+            if (!empty($_GET['quote_status_filter'])) {
+                $status = esc_sql($_GET['quote_status_filter']);
+                $where .= " AND offers.offer_status = '$status'";
+            }
+        }
+        return $where;
+    }
+}
+
+new Eeco_WCO_Offer_Table();

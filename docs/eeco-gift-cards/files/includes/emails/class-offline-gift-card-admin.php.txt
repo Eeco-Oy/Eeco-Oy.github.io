@@ -1,0 +1,102 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly
+}
+
+if ( ! class_exists( 'WC_Email' ) ) {
+	WC()->mailer();
+}
+
+/**
+ * Class WC_Customer_Cancel_Order
+ */
+class Eeco_Offline_Gift_Card_Admin extends WC_Email {
+
+	/**
+	 * Create an instance of the class.
+	 *
+	 * @access public
+	 * @return void
+	 */
+	function __construct() {
+		$this->id          = 'eeco_offline_gift_card_admin';
+		$this->title       = __( 'Offline gift cards admin', 'eeco-gift-cards' );
+		$this->description = __( 'An email sent to the admin when an offline gift card is ordered.', 'eeco-gift-cards' );
+		$this->customer_email = false;
+		$this->heading     = __( 'Here are the details', 'eeco-gift-cards' );
+		/* translators: [%s] is replaced with "blogname" */
+		$this->subject     = sprintf( _x( '[%s] Offline gift card purchased', 'default email for sending offline gift card to admin', 'eeco-gift-cards' ), '{blogname}' );
+		$this->template_html  = 'eeco_offline_gift_card_email_admin.php';
+		$this->template_plain = 'plain/eeco_offline_gift_card_plain_email_admin.php';
+		$this->template_base  = trailingslashit(eeco_gif_cards_template_root('eeco_offline_gift_card_email_admin.php', 'emails'));
+
+		add_action( 'eeco_offline_gift_card_admin', array( $this, 'enqueue_emails' ), 10, 2 );
+
+        $this->recipient = $this->get_option( 'recipient', get_option( 'admin_email' ) );
+
+		parent::__construct();
+	}
+
+	/**
+	 * enqueues emails for the given order
+	 * @param WC_Order $order The order
+	 */
+	public function enqueue_emails($order, $gift_card){
+		$this->order = $order;
+		$this->gift_card = $gift_card;
+
+		$this->trigger();
+	}
+
+	/**  
+	* Trigger Function that will send this email to the customer.
+	*/
+	public function trigger() {
+
+		if ( ! $this->is_enabled()) {
+			return;
+		}
+
+		$attachments = $this->get_attachments();
+
+		$attachments[] = $this->gift_card->get_path();
+
+		$this->send( $this->get_recipient(), $this->get_subject(), $this->get_content(), $this->get_headers(), $attachments );
+	}
+
+	
+	/**
+	 * Get content html
+	 */
+	public function get_content_html() {
+		return wc_get_template_html(    
+			$this->template_html, array(
+				'order'         => $this->order,
+				'gift_card' 	=> $this->gift_card,
+				'email_heading' => $this->get_heading(),
+				'sent_to_admin' => true,
+				'plain_text'    => false,
+				'email'         => $this,
+			), '', $this->template_base 
+		);
+	}
+
+	/**
+	 * Get content plain
+	 */
+	public function get_content_plain() {
+		return wc_get_template_html(
+			$this->template_plain, array(
+				'order'         => $this->order,
+				'gift_card' 	=> $this->gift_card,
+				'email_heading' => $this->get_heading(),
+				'sent_to_admin' => true,
+				'plain_text'    => true,
+				'email'         => $this,
+			), '', $this->template_base 
+		);
+	}
+}
+
+?>

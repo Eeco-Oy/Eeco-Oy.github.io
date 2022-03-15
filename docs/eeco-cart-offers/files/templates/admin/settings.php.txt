@@ -1,0 +1,69 @@
+
+<form method="post" action="options.php" class="wco-settings-form">
+<?php settings_fields( 'eeco_wco_defaults' ); ?>
+<?php do_settings_sections( 'eeco_wco_defaults' ); ?>
+    <div class="admin-heading">
+        <h2 class="settings-title"><?php _e('Quote request settings', 'eeco-wco') ?></h2>
+    </div>
+    <?php eeco_wco_get_template('admin/cart-conditions.php') ?>
+    <hr>
+    <?php eeco_wco_get_template('admin/product-conditions.php', [
+        'name' => 'wco_product_conditions'
+    ]) ?>
+    <hr>
+    <?php if($groups_active): ?>
+    <div class="wco-group">
+        <label for="wco_allowed_groups"><strong><?php _e('Select allowed groups', 'eeco-wco'); ?></strong></label>
+        <i><?php _e('Users in selected groups can submit quote requests. Defaults to all of none selected', 'eeco-wco'); ?></i>
+        <div class="wco-groups-select">
+            <?php if(empty($groups)): ?>
+                <p><?php printf(__('No groups to select. Create a group <a target="_blank" href="%s">here</a>'), get_admin_url(null, 'post-new.php?post_type=bgh_wg')) ?></p>
+            <?php else: ?>
+                <?php foreach($groups as $group): ?>
+                    <p>
+                        <input type="checkbox" name="wco_allowed_groups[]" value="<?php echo $group->ID?>" <?php checked( in_array($group->ID, get_option( 'wco_allowed_groups' )), 1 )?>>
+                        <?php echo $group->post_title ?> (<?php echo $group->status ? __('Active', 'eeco-wco') : __('Passive', 'eeco-wco')?>)
+                    </p>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+    <div class="wco-group">
+        <label for="wco_allowed_roles"><strong><?php _e('Select allowed roles', 'eeco-wco'); ?></strong></label>
+        <i><?php _e('Users with selected roles can submit quote requests. Defaults to all of none selected', 'eeco-wco'); ?></i>
+        <div class="wco-groups-select">
+            <?php foreach($roles as $key => $role): ?>
+                <p>
+                    <input type="checkbox" name="wco_allowed_roles[]" value="<?php echo $key?>" <?php checked( in_array($key, get_option( 'wco_allowed_roles' )), 1 )?>>
+                    <?php echo $role ?>
+                </p>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <div class="wco-group">
+        <label for="wco_offer_expiring_email_buffer"><strong><?php _e('Expiring quote notification', 'eeco-wco'); ?></strong></label>
+        <i><?php _e('How many days before the quote expires user will be notified', 'eeco-wco'); ?></i>
+        <input type="number" name="wco_offer_expiring_email_buffer" value="<?php  echo get_option('wco_offer_expiring_email_buffer'); ?>"></input>
+    </div>
+    <div class="wco-group">
+        <label for="wco_cta_position"><strong><?php _e('CTA button position', 'eeco-wco'); ?></strong></label>
+        <i><?php _e('Position of the CTA button on the cart page', 'eeco-wco'); ?></i>
+        <select name="wco_cta_position" id="wco_cta_position">
+            <option value="woocommerce_before_cart" <?php selected( get_option('wco_cta_position'), 'woocommerce_before_cart' )?>><?php _e('Before Cart', 'eeco-wco') ?></option>
+            <option value="woocommerce_before_cart_collaterals" <?php selected( get_option('wco_cta_position'), 'woocommerce_before_cart_collaterals' )?>><?php _e('Before Cart Collaterals', 'eeco-wco') ?></option>
+            <option value="woocommerce_after_cart" <?php selected( get_option('wco_cta_position'), 'woocommerce_after_cart' )?>><?php _e('After Cart', 'eeco-wco') ?></option>
+            <option value="woocommerce_before_cart_totals" <?php selected( get_option('wco_cta_position'), 'woocommerce_before_cart_totals' )?>><?php _e('Before Cart Totals', 'eeco-wco') ?></option>
+            <option value="woocommerce_after_cart_totals" <?php selected( get_option('wco_cta_position'), 'woocommerce_after_cart_totals' )?>><?php _e('After Cart Totals', 'eeco-wco') ?></option>
+        </select>
+    </div>
+    <div class="wco-group">
+        <label for="wco-cart-license"><strong><?php _e('License key', 'eeco-wco'); ?></strong></label>
+        <i><?php _e('Add your license key to enable automatic updates', 'eeco-wco'); ?></i>
+        <input type="text" name="wco_cart_offer_license_key" value="<?php echo get_option('wco_cart_offer_license_key'); ?>"></input>
+    </div>
+    <div class="wco-button-group">
+        <?php submit_button(); ?>
+    </div>
+</form>
+

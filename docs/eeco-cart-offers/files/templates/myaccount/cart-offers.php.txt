@@ -1,0 +1,97 @@
+<!-- Active Cart offers -page in my account -->
+<div class="wco_cart_offers">
+    <div class="wco_cart_offer_table">
+        <?php switch ($args['offers'][0]->offer_status) {
+            case 'active':
+                $title = _x('Received quotes', 'My Account Page', 'eeco-wco');
+                break;
+            case 'pending':
+                $title = _x('Pending quote requests', 'My Account Page', 'eeco-wco');
+                break;
+            case 'expired':
+                $title = _x('Expired quotes', 'My Account Page', 'eeco-wco');
+                break;
+            default: 
+                $title = _x('Canceled quotes', 'My Account Page', 'eeco-wco');
+                break;
+        } ?>
+        <h3 class="cart-offers-heading"><?php echo $title; ?></h3>
+        <?php foreach($offers as $offer):
+            switch ($offer->offer_status) {
+                case 'active':
+                    $status = '<span id="active-offer" class="offers">'  . __('Quote Active', 'eeco-wco') . '</span>';
+                    break;
+                case 'pending':
+                    $status = '<span id="pending-offer" class="offers">' .  __('Pending Shop Manager', 'eeco-wco') . '</span>';
+                    break;
+                case 'expired':
+                    $status = '<span id="expired-offer" class="offers">' . __('Expired', 'eeco-wco') . '</span>';
+                    break;
+                case 'canceled':
+                    $status = '<span id="canceled-offer" class="offers">' . __('Canceled by customer', 'eeco-wco') . '</span>';
+                    break;
+                case 'customer_declined':
+                    $status = '<span id="declined-offer" class="offers">' . __('Customer declined', 'eeco-wco') . '</span>';
+                    break;
+                case 'admin_declined':
+                    $status = '<span id="declined-offer" class="offers">' . __('Admin declined', 'eeco-wco') . '</span>';
+                    break;
+                default:
+                    $status = '<span id="used-offer" class="offers">'  . __('Converted to Order', 'eeco-wco') . '</span>';
+                    break;
+            }
+            $products = wco_get_products($offer->post_id);
+            $total = 0; ?>
+            <table class="woocommerce-table woocommerce-table--pending-offers shop_table">
+                <thead>
+                    <tr>
+                        <th class="woocommerce-table__product-name product-name"><?php echo _x('Product', 'My account page', 'eeco-wco'); ?></th>
+                        <th class="woocommerce-table__product-quantity product-quantity"><?php echo _x('Quantity', 'My account page', 'eeco-wco'); ?></th>
+                        <th class="woocommerce-table__product-table product-total"><?php echo _x('Total', 'My account page', 'eeco-wco'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach($products as $product):
+                        $_product = wc_get_product($product->product_id);
+                        $price = get_option( 'woocommerce_tax_display_shop' ) === 'incl' ? $product->line_total + $product->tax_total : $product->line_total;
+                        $line_total = get_option( 'woocommerce_tax_display_shop' ) === 'incl' ? $product->line_total + $product->tax_total : $product->line_total;
+                        $total = $total + $line_total; ?>
+                        <tr class="woocommerce-table__line-item order_item">
+                            <td class="woocommerce-table__product-name product-name"><a href="<?php echo get_permalink($_product->get_id()); ?>"><?php echo $_product->get_name(); ?></a></td>
+                            <td class="woocommerce-table__product-quantity product-quantity"><?php echo $product->product_quantity; ?></td>
+                            <td class="woocommerce-table__product-total product-total"><?php echo wc_price($price); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="2"><?php echo _x('Total', 'My account page', 'eeco-wco'); ?></th>
+                        <td><?php echo wc_price($total); ?></td>
+                    </tr>
+                    <tr>
+                        <th colspan="2"><?php echo _x('Discounted price', 'My account page', 'eeco-wco'); ?></th>
+                        <td><?php echo get_offer_discount($offer); ?></td>
+                    </tr>
+                    <tr>
+                        <th colspan="2"><?php echo _x('Status', 'My account page', 'eeco-wco'); ?></th>
+                        <td><?php echo $status; ?></td>
+                    </tr>
+                    <tr>
+                        <th colspan="2"><?php echo _x('Expiratory date', 'My account page', 'eeco-wco'); ?></th>
+                        <td><?php echo date(get_option('date_format'), strtotime($offer->expiry_date)); ?></td>
+                    </tr>
+                    <?php if ($offer->offer_status != 'expired' && $offer->offer_status != 'canceled' && $offer->offer_status != 'customer_declined'): ?>
+                        <tr>
+                            <th <?php echo $offer->offer_status == 'pending' ? 'colspan="2"' : 'scope="row"'; ?>><?php echo _x('Actions', 'My account page', 'eeco-wco'); ?></th>
+                            <?php if ($offer->offer_status != 'pending'): ?>
+                                <td><button class="button wco_account_button wco_add_offer_to_cart" data-wco_offer_id="<?php echo $offer->post_id; ?>" data-wco_offer_coupon="<?php echo $offer->offer_coupon; ?>"><?php _e( 'Use', 'eeco-wco' ); ?></button></td>
+                            <?php endif; ?>
+                            <td><button class="button primary-button wco_account_button <?php echo $offer->offer_status == 'active' ? 'wco_customer_decline_offer' : 'wco_customer_cancel'; ?>" data-wco_offer_id="<?php echo $offer->post_id; ?>"><?php _e( 'Cancel', 'eeco-wco' ); ?></button></td>
+                        </tr>
+                    <?php endif; ?>
+                </tfoot>
+            </table>
+        <?php endforeach; ?>
+    </div>
+</div>
+                                     

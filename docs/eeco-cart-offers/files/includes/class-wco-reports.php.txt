@@ -1,0 +1,301 @@
+<?php 
+
+defined( 'ABSPATH' ) || exit;
+
+class Eeco_Cart_Offers_Reports {
+
+    public function __construct(){
+        $this->handle_csv();
+    }
+
+    /**
+     * generate reports csv if necessary
+     */
+    private function handle_csv(){
+        if(isset($_GET['cart_offers_csv']) && current_user_can('manage_options')) {
+            $this->set_header();
+
+            $start = !empty($_GET['start_date']) ? date("Y-m-d H:i:s", strtotime($_GET['start_date'])) : '1970-01-01 00:00:00';
+            $end = !empty($_GET['end_date']) ? date("Y-m-d H:i:s", strtotime($_GET['end_date'])+86399) : '2500-01-01 23:59:59';
+            $data = self::get_reports($start, $end);
+
+            $translations = array(
+                'total_cart_offers' => __('Quote requests received', 'eeco-wco'),
+                'open_cart_offers' => __('Quote requests open', 'eeco-wco'),
+                'offers_canceled' => __('Quote requests declined', 'eeco-wco'),
+                'offers_submitted' => __('Quotes submitted', 'eeco-wco'),
+                'sales_received' => __('Sales received from quotes', 'eeco-wco'),
+                'customer_declined' => __('Rejected quotes', 'eeco-wco') ,
+                'open_offers' => __('Quotes open', 'eeco-wco'),
+                'expired_offers' => __('Expired quotes', 'eeco-wco'),
+                'sales_received_admin' => __('Sales received from quotes', 'eeco-wco'),
+                'customer_declined_admin' => __('Rejected quotes', 'eeco-wco'),
+                'expired_offers_admin' => __('Expired quotes', 'eeco-wco'),
+                'conversion_rates_a' => __('Conversion rate (From a quote request to a purchase)', 'eeco-wco'),
+                'conversion_rates_b' => __('Conversion rate (From a quote to a purchase)', 'eeco-wco')
+            );
+
+            $out = implode(',', array(
+                _x('Quote requests', 'Reports table', 'eeco-wco'),
+                _x('Amount', 'Reports table', 'eeco-wco'),
+                _x('Percentage', 'Reports table', 'eeco-wco'),
+                _x('Total (excluding taxes)', 'Reports table', 'eeco-wco'),
+                _x('Percentage', 'Reports table', 'eeco-wco'),
+            )) . PHP_EOL;
+
+            foreach ($data as $key => $value) {
+                $out .= $translations[$key].','.implode(",", (array)$value) . PHP_EOL;
+            }
+
+            echo $out;
+
+            exit;
+        }
+    }
+
+    /**
+     * returns the general report data
+     * 
+     * @return array Reports
+     */
+    public static function get_reports($start = '1970-01-01 00:00:00', $end = '2500-01-01 23:59:59') {
+        global $wpdb;
+
+        $offers = $wpdb->prefix . 'eeco_wco_offers';
+        $products = $wpdb->prefix . 'eeco_wco_products';
+        $reports = array(
+            'total_cart_offers' => array(),
+            'open_cart_offers' => array(),
+            'offers_canceled' => array(),
+            'offers_submitted' => array(),
+            'sales_received' => array(),
+            'customer_declined' => array(),
+            'open_offers' => array(),
+            'expired_offers' => array(),
+            'sales_received_admin' => array(),
+            'customer_declined_admin' => array(),
+            'expired_offers_admin' => array(),
+            'conversion_rates_a' => array(),
+            'conversion_rates_b' => array()
+        );
+
+        $open_offers = 0;
+        $canceled_offers = 0;
+        $customer_declined = 0;
+        $active_offers = 0;
+        $used_offers = 0;
+        $expired_offers = 0;
+
+        // Total quotes by status
+        $query = "SELECT o.offer_status, count(o.id) as total 
+        FROM {$wpdb->prefix}eeco_wco_offers o
+        LEFT JOIN {$wpdb->posts} p ON o.post_id = p.ID
+        WHERE p.post_date >= %s
+        AND p.post_date <= %s
+        GROUP BY offer_status";
+        $totals = $wpdb->get_results($wpdb->prepare($query, $start, $end));
+        foreach ($totals as $_total) {
+            switch ($_total->offer_status) {
+                case 'pending':
+                    $open_offers = $_total->total;
+                    break;
+                case 'admin_declined':
+                    $canceled_offers = $_total->total;
+                    break;
+                case 'customer_declined':
+                    $customer_declined = $_total->total;
+                    break;
+                case 'active':
+                    $active_offers = $_total->total;
+                    break;
+                case 'inactive':
+                    $used_offers = $_total->total;
+                    break;
+                case 'expired':
+                    $expired_offers = $_total->total;
+                    break;
+            }
+        }
+
+        // Total quote requests offers
+        $query = "SELECT count(ID) as total
+        FROM wp_posts
+        WHERE post_date >= %s
+        AND post_date <= %s
+        AND post_status = 'publish'
+        AND post_type = 'wco_offer'";
+        $total = $wpdb->get_row($wpdb->prepare($query, $start, $end));
+        $reports['total_cart_offers']['total'] = $total->total;
+        $reports['total_cart_offers']['csv_empty'] = '';
+
+        // Total value
+        $query = "SELECT sum(products.line_total) as line_total 
+        FROM $products products
+        LEFT JOIN {$wpdb->posts} posts ON products.post_id = posts.ID
+        WHERE posts.post_date >= %s
+        AND posts.post_date <= %s";
+        $total_value = $wpdb->get_row($wpdb->prepare($query, $start, $end));
+        $reports['total_cart_offers']['value'] = $total_value->line_total;
+
+        // Open quote requests
+        $query = "SELECT sum(pm.line_total) as line_total 
+        FROM $offers p
+        LEFT JOIN $products pm ON p.post_id = pm.post_id
+        LEFT JOIN {$wpdb->posts} posts ON p.post_id = posts.ID
+        WHERE p.offer_status = 'pending'
+        AND posts.post_date >= %s
+        AND posts.post_date <= %s";
+        $open_offers_value = $wpdb->get_row($wpdb->prepare($query, $start, $end));
+
+        $reports['open_cart_offers']['total'] = $open_offers;
+        $reports['open_cart_offers']['percentage'] = $open_offers != 0 ? $open_offers / $total->total * 100 : 0;
+        $reports['open_cart_offers']['value'] = $open_offers_value->line_total;
+        $reports['open_cart_offers']['value_percentage'] = $open_offers_value->line_total != 0 ? $open_offers_value->line_total / $total_value->line_total * 100 : 0;
+
+        // Quote requests declined
+        $query = "SELECT sum(pm.line_total) as line_total 
+        FROM $offers p
+        LEFT JOIN $products pm ON p.post_id = pm.post_id
+        LEFT JOIN {$wpdb->posts} posts ON p.post_id = posts.ID
+        WHERE p.offer_status = 'admin_declined'
+        AND posts.post_date >= %s
+        AND posts.post_date <= %s";
+        $canceled_offers_value = $wpdb->get_results($wpdb->prepare($query, $start, $end));
+
+        $reports['offers_canceled']['total'] = $canceled_offers;
+        $reports['offers_canceled']['percentage'] = $canceled_offers != 0 ? $canceled_offers / $total->total * 100 : 0;
+        $reports['offers_canceled']['value'] = $canceled_offers_value[0]->line_total;
+        $reports['offers_canceled']['value_percentage'] = $canceled_offers_value[0]->line_total != 0 ? $canceled_offers_value[0]->line_total / $total_value->line_total * 100 : 0;
+
+        // Quotes submitted
+        $submitted_offers = $active_offers + $used_offers + $expired_offers + $customer_declined;
+
+        $args = array('active', 'inactive', 'expired', 'customer_declined');
+        $submitted_value = get_offer_values($args, $start, $end);
+
+        $reports['offers_submitted']['total'] = $submitted_offers;
+        $reports['offers_submitted']['percentage'] = $submitted_offers != 0 ? $submitted_offers / $total->total * 100 : 0;
+        $reports['offers_submitted']['value'] = $submitted_value;
+        $reports['offers_submitted']['value_percentage'] = $submitted_value != 0 ? $submitted_value / $total_value->line_total * 100 : 0;
+
+        // Sales received from quotes
+        $query = "SELECT sum(pm.meta_value) as order_total, sum(pm2.meta_value) as tax_total, count(offer.id) as total
+        FROM $offers offer
+        LEFT JOIN {$wpdb->postmeta} pm ON offer.order_id = pm.post_id
+        LEFT JOIN {$wpdb->postmeta} pm2 ON offer.order_id = pm2.post_id
+        LEFT JOIN {$wpdb->posts} posts ON offer.post_id = posts.ID
+        WHERE pm.meta_key = '_order_total'
+        AND pm2.meta_key = '_order_tax'
+        AND offer.order_id != 'NULL'
+        AND posts.post_date >= %s
+        AND posts.post_date <= %s";
+        $used_coupons = $wpdb->get_results($wpdb->prepare($query, $start, $end));
+        
+        $reports['sales_received']['total'] = $used_coupons[0]->total;
+        $reports['sales_received']['percentage'] = $used_coupons[0]->total != 0 ? $used_coupons[0]->total / $submitted_offers * 100 : 0;
+        $reports['sales_received']['value'] = $used_coupons[0]->order_total - $used_coupons[0]->tax_total;
+        $reports['sales_received']['value_percentage'] = $reports['sales_received']['value'] != 0 ? $reports['sales_received']['value'] / $reports['offers_submitted']['value'] * 100 : 0;
+
+        // Customer declined
+        $query = "SELECT o.post_id 
+        FROM $offers o
+        LEFT JOIN {$wpdb->posts} posts ON o.post_id = posts.ID
+        WHERE offer_status = 'customer_declined'
+        AND posts.post_date >= %s
+        AND posts.post_date <= %s";
+        $offers_declined = $wpdb->get_results($wpdb->prepare($query, $start, $end));
+        
+        $declined_value = get_offer_values(array('customer_declined'), $start, $end);
+
+        $reports['customer_declined']['total'] = $customer_declined;
+        $reports['customer_declined']['percentage'] = $customer_declined != 0 ? $customer_declined / $submitted_offers * 100 : 0;
+        $reports['customer_declined']['value'] = $declined_value;
+        $reports['customer_declined']['value_percentage'] = $declined_value != 0 ? $declined_value / $submitted_value * 100 : 0;
+
+        // Open quotes
+        $active_offers_value = get_offer_values(array('active'), $start, $end);
+
+        $reports['open_offers']['total'] = $active_offers;
+        $reports['open_offers']['percentage'] = $active_offers != 0 ? $active_offers / $submitted_offers * 100 : 0;
+        $reports['open_offers']['value'] = $active_offers_value;
+        $reports['open_offers']['value_percentage'] = $active_offers_value != 0 ? $active_offers_value / $submitted_value * 100 : 0;
+
+        // Expired quotes
+        $expired_value = get_offer_values(array('expired'), $start, $end);
+        $reports['expired_offers']['total'] = $expired_offers;
+        $reports['expired_offers']['percentage'] = $expired_offers != 0 ? $expired_offers / $submitted_offers * 100 : 0;
+        $reports['expired_offers']['value'] = $expired_value;
+        $reports['expired_offers']['value_percentage'] = $expired_value != 0 ? $expired_value / $submitted_value * 100 : 0;
+
+        // Sales received from quotes (Admin dates)
+        $query = "SELECT sum(pm.meta_value) as order_total, sum(pm2.meta_value) as tax_total, count(offer.id) as total
+        FROM $offers offer
+        LEFT JOIN {$wpdb->postmeta} pm ON offer.order_id = pm.post_id
+        LEFT JOIN {$wpdb->postmeta} pm2 ON offer.order_id = pm2.post_id
+        WHERE pm.meta_key = '_order_total'
+        AND pm2.meta_key = '_order_tax'
+        AND offer.order_id != 'NULL'
+        AND offer.offer_given >= %s
+        AND offer.offer_given <= %s";
+        $used_coupons_admin = $wpdb->get_results($wpdb->prepare($query, date('Y-m-d', strtotime($start)), date('Y-m-d', strtotime($end))));
+        $reports['sales_received_admin']['total'] = $used_coupons_admin[0]->total;
+        $reports['sales_received_admin']['csv_empty'] = '';
+        $reports['sales_received_admin']['value'] = $used_coupons_admin[0]->order_total - $used_coupons_admin[0]->tax_total;
+
+        // Customer declined (Admin dates)
+        $query = "SELECT count(o.post_id) as total
+        FROM $offers o
+        LEFT JOIN {$wpdb->posts} posts ON o.post_id = posts.ID
+        WHERE offer_status = 'customer_declined'
+        AND o.offer_given >= %s
+        AND o.offer_given <= %s";
+        $offers_declined_admin = $wpdb->get_results($wpdb->prepare($query, date('Y-m-d', strtotime($start)), date('Y-m-d', strtotime($end))));
+        $declined_value_admin = get_admin_dates_offer_values(array('customer_declined'), date('Y-m-d', strtotime($start)), date('Y-m-d', strtotime($end)));
+
+        $reports['customer_declined_admin']['total'] = $offers_declined_admin[0]->total;
+        $reports['customer_declined_admin']['csv_empty'] = '';
+        $reports['customer_declined_admin']['value'] = $declined_value_admin;
+
+        // Expired quotes (Admin dates)
+        $query = "SELECT count(o.post_id) as total
+        FROM $offers o
+        LEFT JOIN {$wpdb->posts} posts ON o.post_id = posts.ID
+        WHERE offer_status = 'expired'
+        AND o.offer_given >= %s
+        AND o.offer_given <= %s";
+        $expired_admin = $wpdb->get_results($wpdb->prepare($query, date('Y-m-d', strtotime($start)), date('Y-m-d', strtotime($end))));
+        $expired_value_admin = get_admin_dates_offer_values(array('expired'), date('Y-m-d', strtotime($start)), date('Y-m-d', strtotime($end)));
+
+        $reports['expired_offers_admin']['total'] = $expired_admin[0]->total;
+        $reports['expired_offers_admin']['csv_empty'] = '';
+        $reports['expired_offers_admin']['value'] = $expired_value_admin;
+
+        // Conversion rates
+        $reports['conversion_rates_a']['quote_to_sale'] = $used_coupons[0]->total != 0 ? $used_coupons[0]->total / $total->total * 100 : 0;
+        $reports['conversion_rates_a']['csv_empty'] = '';
+        $reports['conversion_rates_b']['proposal_to_sale'] = $used_coupons[0]->total != 0 ? $used_coupons[0]->total / $submitted_offers * 100 : 0;
+        $reports['conversion_rates_b']['csv_empty'] = '';
+        $reports['conversion_rates_a']['quote_to_sale_percentage'] = $used_coupons[0]->total != 0 ? ($used_coupons[0]->order_total - $used_coupons[0]->tax_total) / $total_value->line_total * 100 : 0;
+        $reports['conversion_rates_b']['proposal_to_sale_percentage'] = $used_coupons[0]->total != 0 ?($used_coupons[0]->order_total - $used_coupons[0]->tax_total) / $submitted_value * 100 : 0;
+
+        return $reports;
+    }
+
+    /**
+     * set header for downloading the csv
+     */
+    private function set_header(){
+        $start = !empty($_GET['start_date']) ? '_from_'.date("Y-m-d", strtotime($_GET['start_date'])) : '';
+        $end = !empty($_GET['end_date']) ? '_to_'.date("Y-m-d", strtotime($_GET['end_date'])) : '';
+        $date = $start.$end;
+        header("Pragma: public");
+        header("Expires: 0");
+        header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+        header("Cache-Control: private", false);
+        header("Content-Type: application/octet-stream");
+        header("Content-Disposition: attachment; filename=\"report".$date.".csv\";" );
+        header("Content-Transfer-Encoding: binary");
+    }
+}
+
+new Eeco_Cart_Offers_Reports();

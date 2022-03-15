@@ -1,0 +1,319 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+    die();
+}
+
+//handle ajax stuff
+class Eeco_WCO_Ajax {
+    /**
+     * add actions
+     */
+    function __construct(){
+      add_action( 'wp_ajax_eeco_wco_create_post', array($this, 'eeco_wco_create_post') );
+      add_action( 'wp_ajax_eeco_wco_edit_offer', array($this, 'eeco_wco_edit_offer') );
+      add_action('wp_ajax_eeco_wco_update_cart', array($this, 'eeco_wco_update_cart'));
+      add_action('wp_ajax_eeco_wco_decline_offer', array($this, 'eeco_wco_decline_offer'));
+      add_action('wp_ajax_eeco_wco_customer_decline', array($this, 'eeco_wco_customer_decline'));
+      add_action('wp_ajax_eeco_wco_cancel', array($this, 'eeco_wco_cancel'));
+      add_action('wp_ajax_eeco_wco_query_items', array($this, 'eeco_wco_query_items'));
+      add_action('wp_ajax_wco_filter_repors', array($this, 'wco_filter_repors'));
+    }    
+    
+
+     /**
+     * Get query items
+     * 
+     * @return array Edited menu items
+     */
+    public function eeco_wco_query_items() {
+        if(current_user_can('manage_options')){
+
+            if(isset($_GET['query']) && isset($_GET['type'])){
+                $type = $_GET['type'];
+                $results = [];
+
+                if($type === 'product'){
+                    $args = [
+                        'post_type' => 'product',
+                        'posts_per_page' => 10,
+                        's' => $_GET['query'],
+                        'post_status' => 'publish',
+                        'tax_query' => [
+                            [
+                                'taxonomy' => 'product_type',
+                                'field'    => 'slug',
+                                'terms'    => ['simple']
+                            ]
+                        ]
+                    ];
+
+                    if(isset($_GET['selected']) && is_array($_GET['selected'])){
+                        $args['post__not_in'] = $_GET['selected'];
+                    }
+
+                    $query = new WP_Query($args);
+
+                    foreach ($query->get_posts() as $value) {
+                        $sku = get_post_meta($value->ID, '_sku', true);
+
+                        $results[$value->ID] = $value->post_title.' ('.($sku ? $sku : '-').')';
+                    }
+                }
+                else{
+                    $args = [
+                        'taxonomy' => $type,
+                        'hide_empty' => false,
+                        'number' => 10,
+                        'fields' => 'id=>name',
+                        'search' => $_GET['query']
+                    ];
+
+                    if(isset($_GET['selected']) && is_array($_GET['selected'])){
+                        $args['exclude'] = $_GET['selected'];
+                    }
+
+                    $results = get_terms($args);
+                }
+
+                wp_send_json_success($results);
+            }
+        }
+
+        wp_send_json_error([], 401);
+    }
+    /**
+     * update an offer status to cancelled
+     * @return bool true || false if status cancelled
+     */
+    public function eeco_wco_cancel() {
+        if( wp_verify_nonce( $_POST['nonce'], 'account-nonce' )){
+            $offer = wco_get_offer($_POST['post_id']);
+            if($offer && $offer->user_id = get_current_user_id()){
+
+                $data = wco_cancel_offer($_POST['post_id']);
+    
+                wp_send_json_success($data);
+            }
+        }
+        wp_send_json_error(403, "Nonce not matched");
+    }
+    /**
+     * update an offer status to customer decline
+     * @return bool true || false if updating offer successful
+     */
+    public function eeco_wco_customer_decline() {
+        if( wp_verify_nonce( $_POST['nonce'], 'account-nonce' )){
+
+            $offer = wco_get_offer($_POST['post_id']);
+
+            if($offer && $offer->user_id = get_current_user_id()){
+                $data = wco_customer_decline_offer($_POST['post_id']);
+    
+                wp_send_json_success($data);
+            }
+        }
+        wp_send_json_error(403, "Nonce not matched");
+    }
+
+    /**
+     * update offer status to top manager declined declined
+     */
+    public function eeco_wco_decline_offer() {
+        if( current_user_can( 'edit_post', $_POST['post_id'] ) && wp_verify_nonce( $_POST['nonce'], 'admin-nonce' )){
+            $offer = wco_get_offer($_POST['post_id']);
+            
+            wco_decline_offer($_POST['post_id']);
+
+            $user_info = get_userdata($offer->user_id);
+            $user_email = $user_info->user_email;
+            
+            WC()->mailer();
+
+            do_action('eeco_wco_offer_declined_email', [
+                'items' => wco_get_offer_products($_POST['post_id']),
+                'email' => $user_email,
+                'discount_type' => $offer->offer_type,
+                'discount_value' => $offer->offer_value
+            ]);
+        }
+        wp_send_json_error(403, "Nonce not matched");
+    }
+    /**
+     * update cart with offer items and add coupon for cart
+     */
+    public function eeco_wco_update_cart(){
+        if( wp_verify_nonce( $_POST['nonce'], 'account-nonce' )){
+
+            //generate a random string for coupon name
+            $input = '0123456789abcdefghijklmnopqrstuvwxyz';
+
+            $input_length = strlen($input);
+
+            $coupon_code = '';
+
+            for($i = 0; $i < 10; $i++) {
+                $random_character = $input[mt_rand(0, $input_length - 1)];
+                $coupon_code .= $random_character;
+            }
+
+            //empty cart
+            WC()->cart->empty_cart();
+
+            //empty cart coupons
+            WC()->cart->remove_coupons();
+
+            //get product id's and quantities, add them to cart
+            $products = wco_get_offer_products($_POST['post_id']);
+
+            foreach($products as $product){
+                $qty = $product->product_quantity;
+                WC()->cart->add_to_cart( $product->product_id, $qty, 0, array(), array() );
+            }
+
+            $offer = wco_get_offer($_POST['post_id']);
+
+            if(strlen($offer->offer_coupon) > 1){
+                wco_update_offer_coupon($_POST['post_id'], $coupon_code);
+            }else{
+                wco_coupon_to_offer($_POST['post_id'], $coupon_code);
+            }
+
+            WC()->cart->add_discount( $coupon_code );
+        }
+        wp_send_json_error(403, "Nonce not matched");
+
+    }
+
+    /**
+     * Create an offer post
+     * 
+     * @return int ID of post created
+     */
+    public function eeco_wco_create_post(){
+        if( wp_verify_nonce( $_POST['nonce'], 'cart-nonce' )){
+            $title = $_POST['name'] . " (".$_POST['email'].")";
+            $userID = get_current_user_id();
+
+            //Check if email different from user logged in
+            $current_user = wp_get_current_user();
+            $current_email = $current_user->user_email;
+
+            //If email not same as user who sent the request, check if user with email exists and add offer and post with that user's ID
+            if($_POST['email'] !== $current_email){
+                $user = get_user_by('email', $_POST['email']);
+
+                if(!$user){
+                    wc_add_notice(__('Sending quote failed. User with email does not exist','eeco-wco'), 'error');
+                    wp_send_json_error(404, "User not found");
+                }
+
+                $userID = $user->ID;
+            }
+
+            //Create a post with custom post type (get ID of post created)            
+            $data = wp_insert_post(array (
+                'post_author' => $userID,
+                'post_type' => 'wco_offer',
+                'post_title' => $title,
+                'post_content' => $_POST['additional'],
+                'post_status' => 'publish',
+                'comment_status' => 'closed',  
+                'ping_status' => 'closed', 
+                'meta_input' => array(
+                    'eeco_wco_name' => $_POST['name'],
+                    'eeco_wco_email' => $_POST['email'],
+                    'eeco_wco_phone' => $_POST['phone'],
+                    'eeco_wco_additional' => $_POST['additional'],
+                    'eeco_wco_user_id' => $userID,
+                )
+            ));
+
+            //Get all items in cart and attach them to an offer
+            foreach ( WC()->cart->get_cart() as $cart_item ) {
+                $product_id = !empty($cart_item['variation_id']) ? $cart_item['variation_id'] : $cart_item['product_id'];
+                wco_add_product($data, $product_id, $cart_item['quantity'], $cart_item['line_total'], $cart_item['line_tax']);
+            }
+
+            $expiry_date = date('Y-m-d', strtotime('+1 years'));
+
+            //Create an offer to database
+            wco_create_offer($data, $userID, 'price', 'taxable', '0', 'pending', $expiry_date);
+            
+            WC()->mailer();
+
+            do_action('eeco_wco_new_offer_email', [
+                'items' => WC()->cart->get_cart(),
+                'name' => $_POST['name'],
+                'phone' => $_POST['phone'],
+                'additional' => $_POST['additional'],
+                'email' => $_POST['email']
+            ]);
+            wc_add_notice(__('Quote successfully sent','eeco-wco'), 'success');
+            wp_send_json_success($data);
+        }
+        wp_send_json_error(403, "Nonce not matched");
+    }
+
+    /**
+     * Create or edit an offer
+     * 
+     * @return int ID of post created or edited
+     */
+    public function eeco_wco_edit_offer(){
+        if( current_user_can( 'edit_post', $_POST['post_id'] ) && wp_verify_nonce( $_POST['nonce'], 'admin-nonce' )){
+
+            $user_info = get_userdata($_POST['user_id']);
+
+            $data = wco_edit_offer($_POST['post_id'], $_POST['type'], $_POST['taxes'], $_POST['value'], 'active', $_POST['expiry_date']);
+
+            WC()->mailer();
+
+            $expiry_date = date("d.m.Y", strtotime($_POST['expiry_date']));
+
+            if($_POST['save_type'] == 'create'){
+                do_action('eeco_wco_offer_accepted_email', [
+                    'items' => wco_get_offer_products($_POST['post_id']),
+                    'email' => $user_info->user_email,
+                    'discount_type' => $_POST['type'],
+                    'discount_value' => $_POST['value'],
+                    'expiry_date' => $expiry_date
+                ]);
+            }else {
+                do_action('eeco_wco_offer_edit_email', [
+                    'items' => wco_get_offer_products($_POST['post_id']),
+                    'email' => $user_info->user_email,
+                    'discount_type' => $_POST['type'],
+                    'discount_value' => $_POST['value'],
+                    'expiry_date' => $expiry_date
+                ]);
+            }
+            
+
+            wp_send_json_success($data);
+        }
+        wp_send_json_error(403, "Nonce not matched");
+    }
+    /**
+     * Filter reports by date
+     * @return 
+     */
+    public function wco_filter_repors() {
+        if(current_user_can('manage_options')) {
+            if (!empty($_GET['start_date']) || !empty($_GET['end_date'])) {
+                $start = !empty($_GET['start_date']) ? date("Y-m-d H:i:s", strtotime($_GET['start_date'])) : '1970-01-01 00:00:00';
+                $end = !empty($_GET['end_date']) ? date("Y-m-d H:i:s", strtotime($_GET['end_date'])+86399) : '2500-01-01 23:59:59';
+                $data = array(
+                    'reports' => Eeco_Cart_Offers_Reports::get_reports($start, $end)
+                );
+                ob_start();
+                eeco_wco_get_template('admin/reports.php', $data);
+                $html = ob_get_clean();
+                wp_send_json_success($html);
+            }
+            wp_send_json_error(403, "No dates");
+        }
+    }
+}
+
+new Eeco_WCO_Ajax();

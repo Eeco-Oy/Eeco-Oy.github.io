@@ -1,0 +1,18 @@
+<?php
+
+// if uninstall.php is not called by WordPress, die
+if (!defined('WP_UNINSTALL_PLUGIN')) {
+    die;
+}
+
+global $wpdb;
+//removing every post with post type of wco_offer
+$wpdb->query( "DELETE FROM {$wpdb->posts} WHERE post_type = 'wco_offer';" );
+$wpdb->query( "DELETE meta FROM {$wpdb->postmeta} meta LEFT JOIN {$wpdb->posts} posts ON posts.ID = meta.post_id WHERE posts.ID IS NULL;" );
+
+//drop custom tables
+$offers_table = $wpdb->prefix . 'eeco_wco_offers';
+$wpdb->query( "DROP TABLE IF EXISTS $offers_table" );
+
+$offer_products_table = $wpdb->prefix . 'eeco_wco_products';
+$wpdb->query( "DROP TABLE IF EXISTS $offer_products_table" );

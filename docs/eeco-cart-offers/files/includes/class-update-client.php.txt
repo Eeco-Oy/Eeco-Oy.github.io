@@ -1,0 +1,264 @@
+<?php
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Client for our API handling plugin updates and license validation.
+ * NOTICE: This class needs to be installed inside the includes folder of a plugin and
+ * the plugin main file must be named identically to the plugin folder.
+ */
+class Eeco_WCO_Update_Client { 
+
+    private $plugin_slug;
+    private $data;
+    private $error_mssg;
+    private $api_site;
+    private $update_time;
+    private $license_option;
+
+    function __construct() {
+        $this->set_configs();
+        $this->register_actions();
+        $this->register_filters();
+    }
+
+    /**
+     * Configs for the API.
+     */
+    private function set_configs() {
+        if( !function_exists('get_plugin_data') ){
+            require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+        }
+        $this->plugin_slug = dirname( plugin_basename( __DIR__ ) );
+        $this->data = get_plugin_data( EECO_WCO_PATH. '/' . $this->plugin_slug . '.php' );
+        $this->update_time = 43200;                                                       
+        $this->license_option = 'wco_cart_offer_license_key'; 
+        $this->api_site = 'http://eeco.fi';                        
+    }
+
+    /**
+     * Register the WordPress actions needed in this class
+     */
+    private function register_actions() {
+        add_action( 'upgrader_process_complete', [$this, 'after_update'], 10, 2 );
+        add_action( "in_plugin_update_message-{$this->plugin_slug}/{$this->plugin_slug}.php", [$this, 'custom_update_mssg'], 10, 2 );
+        add_action( 'update_option_'.$this->license_option, [$this, 'force_update_check'], 20, 3 );
+        add_action( 'add_option_'.$this->license_option, [$this, 'force_update_check'], 20, 2 );
+    }
+
+    /**
+     * Register the WordPress filters needed in this class
+     */
+    private function register_filters() {
+        add_filter('plugins_api', [$this, 'update_info'], 20, 3);
+        add_filter('site_transient_update_plugins', [$this, 'update_check'] );
+    }
+
+    /**
+     * Retrive update information from our server and display them in the view details page.
+     */
+    public function update_info( $res, $action, $args ) {
+
+        if( 'plugin_information' !== $action ) {
+            return false;
+        }
+
+        error_log($args->slug);
+
+        if( $this->plugin_slug !== $args->slug ) {
+            return false;
+        }
+
+        // trying to get update information from cache first
+        if( !$remote = get_transient( 'eeco_update_info_' . $this->plugin_slug ) ) { 
+            $remote = $this->get_update_info();
+            set_transient( 'eeco_update_info_' . $this->plugin_slug, $remote, $this->update_time );
+        }
+
+        if( $remote ) {
+            $res = new stdClass();
+            $res->name = $remote->name;
+            $res->slug = $this->plugin_slug;
+            $res->homepage = $remote->homepage;
+            $res->version = $remote->version;
+            $res->tested = $remote->tested;
+            $res->requires = $remote->requires;
+            $res->author = $remote->author;
+            $res->download_link = $remote->download_url;
+            $res->trunk = $remote->download_url;
+            $res->requires_php = $remote->requires_php;
+            $res->last_updated = $remote->last_updated;
+            $sects = get_object_vars($remote->sections);
+            foreach ( $sects as $key => $val ) {
+                if ( empty($val) ) {
+                    unset( $sects[$key] );
+                }
+            }
+            $res->sections = $sects;
+            $res->banners = [
+                'low' => $remote->banners->low,
+                'high' => $remote->banners->high
+            ];
+            return $res;
+        }
+        return false;
+    }
+
+    /*
+    * This will check if there is an update available for a plugin
+    */
+    public function update_check( $transient ) {
+
+        if ( empty($transient->checked ) ) {
+            return $transient;
+        }
+
+        // trying to get update information from cache first
+        if( !$remote = get_transient( 'eeco_update_check_' . $this->plugin_slug ) ) {
+            $remote = $this->get_update_info();
+            set_transient( 'eeco_update_check_' . $this->plugin_slug, $remote, $this->update_time ); 
+        }
+
+        if ( !$remote || !isset($remote->version) ) {
+            return $transient;
+        }
+        $this->generate_update_mssg($remote);
+        $version = $this->data['Version'];
+
+        if( $remote && version_compare( $version, $remote->version, '<' ) && version_compare($remote->requires, get_bloginfo('version'), '<' ) ) {
+            $res = new stdClass();
+            $res->slug = $this->plugin_slug;
+            $res->plugin = $this->plugin_slug .'/'. $this->plugin_slug .'.php';
+            $res->new_version = $remote->version;
+            $res->tested = $remote->tested;
+            $res->package = $remote->download_url;
+            $transient->response[$res->plugin] = $res;
+        }
+        return $transient;
+    }
+
+    /*
+    * Clear new versions information from cache after installation
+    */
+    public function after_update( $upgrader_object, $options ) {
+
+        if ( $options['action'] == 'update' && $options['type'] === 'plugin' )  {
+            delete_transient( 'eeco_update_check_' . $this->plugin_slug ); 
+            delete_transient( 'eeco_update_info_' . $this->plugin_slug );
+        }
+    }
+
+    /**
+     * Get the plugins update information from The Eeco API.
+     */
+    private function get_update_info() {
+        $params = [ 'k' => get_option( $this->license_option ), 's' => $this->plugin_slug ];
+        $body = $this->call_api('info', $params);
+        $this->generate_update_mssg($body); 
+        return $body;
+    }
+
+    /**
+     * Returns true if this plugin has an active license.
+     */
+    static function is_valid() {
+        // TÃ¤hÃ¤n jos tarvii niin koodi mikÃ¤ palauttaa API:lta tiedon onko lisenssi voimassa
+        // json muodossa {"valid": true/false}.
+        
+    }
+
+    /**
+     * Clear cached API response from transient so we can force a update check.
+     */
+    public function force_update_check( $dont_use = null, $these = null, $please = null ) {
+        delete_transient( 'eeco_update_check_' . $this->plugin_slug );
+        delete_transient( 'eeco_update_info_' . $this->plugin_slug );
+        delete_transient( 'eeco_connected_' . $this->plugin_slug );
+    }
+
+
+    /**
+     * Call the Eeco API, handle http errors and return fetched response body json as a stdClass PHP object.
+     * 
+     * @param   String  $action     The API action to be called
+     * @param   Array   $params     The http query params needed by the action
+     */
+    private function call_api( $action, $params ) {
+        $url = $this->api_site . '/eeco_api/v1/' . $action;
+        $url .= '?' . http_build_query( $params );
+        $response = wp_remote_get( $url, [ 'timeout' => 20, 'headers' => ['Accept' => 'application/json'] ] );
+
+        if ( is_wp_error( $response ) || !isset( $response['response']['code'] ) || $response['response']['code'] != 200 || empty( $response['body'] ) ) {
+            add_action( 'admin_notices', [$this, 'connection_error'] );
+            return json_decode('{"version": 0}');  // return something so the code won't hang up in the license check (false won't save into transient). 
+        }
+
+        if ( !get_transient('eeco_connected_' . $this->plugin_slug) ) {
+            add_action( 'admin_notices', [$this, 'connection_success'] );
+        }
+
+        set_transient('eeco_connected_' . $this->plugin_slug, true, 0);
+        return json_decode($response['body']);
+    }
+
+    /**
+     * Generate the error message from code given by the API.
+     */
+    private function generate_update_mssg( $body ){
+        if ( !isset($body->error) ) return;
+        switch ($body->error) {
+            case "0":
+                $this->error_mssg = __( "Please enter a license to enable updates.", 'wc-smartum-gateway' );
+                break;
+            case "1":
+                $this->error_mssg = __( "Incorrect license.", 'wc-smartum-gateway' );
+                break;
+            case "2":
+                $this->error_mssg = __( "The license entered is for another plugin.", 'wc-smartum-gateway' );
+                break;
+            case "3":
+                $this->error_mssg = __( "The license from our store expired.", 'wc-smartum-gateway' );
+                break;
+            case "4":
+                $this->error_mssg = __( "The license from 3rd party store expired.", 'wc-smartum-gateway' );
+                break;
+            default:
+                $this->error_mssg = __( "Unexpected error with the license.", 'wc-smartum-gateway' );
+        }
+    }
+
+    /**
+     * Add our own custom message to the end of the WP default message.
+     */
+    public function custom_update_mssg($plugin_data, $response ) {
+
+        if ( isset($this->error_mssg) ) {
+            echo "<br>" . $this->error_mssg ;
+        }
+    }
+
+    /**
+     * Display error message in the wp-admin if we have problems connecting to the license API.
+     */
+    public function connection_error() {
+        $class = 'notice notice-error';
+        $message = __( 'Couldn\'t connect to the Eeco License API.', 'wc-smartum-gateway' );
+     
+        printf( '<div class="%1$s"><p>%2$s</p></div>', esc_attr( $class ), esc_html( $message ) ); 
+    }
+
+    /**
+     * Display success message on valid response from the license API
+     */
+    public function connection_success() {
+        $class = 'notice notice-success ';
+        $message = __( 'Connected to the Eeco License API.', 'wc-smartum-gateway' );
+     
+        printf( '<div class="%1$s"><p>%2$s</p></div>', esc_attr( $class ), esc_html( $message ) ); 
+    }
+}
+
+if(is_admin()) {
+    new Eeco_WCO_Update_Client(); 
+}
+?>

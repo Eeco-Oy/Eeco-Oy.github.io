@@ -1,0 +1,241 @@
+<!-- Counter offer meta box page --> 
+<input id="wco_user_id" type="hidden" value="<?php echo $userID; ?>">
+<div class="eeco-wco-wrapper">
+    <div class="eeco-wco-row">
+        <table>
+            <tbody>
+                <tr>
+                    <th><?php _e('Status: ', 'eeco-wco'); ?></th>
+                    <td class="status">
+                    <?php
+                    if($offer->offer_status == 'admin_declined'){?>
+                        <span class="declined"><?php   _e('Admin declined', 'eeco-wco'); ?></span>
+                        <?php 
+                            } elseif($offer->offer_status == 'active'){?>
+                                <span class="sent"><?php  _e('Quote Active', 'eeco-wco'); ?></span>
+                        <?php
+                            } elseif($offer->offer_status == 'pending'){?>
+                                <span class="pending"><?php  _e('Pending Shop Manager', 'eeco-wco');?></span>
+                        <?php } elseif($offer->offer_status == 'customer_declined'){?>
+                                <span class="customer_declined"><?php  _e('Customer declined', 'eeco-wco');?></span>
+                        <?php }  elseif($offer->offer_status == 'inactive'){?>
+                                <span class="inactive"><?php  _e('Converted to Order', 'eeco-wco');?></span>
+                        <?php }  elseif($offer->offer_status == 'canceled'){?>
+                                <span class="canceled"><?php  _e('Canceled by customer', 'eeco-wco');?></span>
+                        <?php }  elseif($offer->offer_status == 'expired'){?>
+                                <span class="expired"><?php  _e('Expired', 'eeco-wco');?></span>
+                        <?php } 
+                    else { ?>
+                        <span class="empty wco_unable"><?php echo $offer->offer_status;?> </span>
+                    <?php } ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th><?php _e('Phonenumber: ', 'eeco-wco'); ?></th>
+                    <td>
+                        <?php echo get_post_meta($post->ID, 'eeco_wco_phone', true); ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th><?php _e('Message: ', 'eeco-wco'); ?></th>
+                    <td>
+                        <?php echo get_post_meta($post->ID, 'eeco_wco_additional', true); ?>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="eeco-wco-row column">
+        <h2 class="title"><?php _e('Products', 'eeco-wco');?>:</h2>
+        <div class="product-content">
+            <?php
+            $total = 0;
+            foreach($products as $product){
+                $single_product = wc_get_product($product->product_id);
+                $line_total = get_option( 'woocommerce_tax_display_shop' ) === 'incl' ? $product->line_total + $product->tax_total : $product->line_total;
+                $total = $total + $line_total;           
+                $image = $single_product ? wp_get_attachment_url( $single_product->get_image_id() ) : null;
+                ?>
+            <div class="product-wrapper">
+                <?php if($image) : ?>
+                    <img class="image" src="<?php echo $image ?>" />
+                <?php else: ?>
+                    <i class="far fa-image no-image"></i>
+                <?php endif;?>
+                <div class="product-details">
+                    <a href="<?php echo $single_product ? $single_product->get_permalink() : '#'; ?>">
+                        <p class="product-name"><?php echo $single_product ? $single_product->get_name() : __('(Product deleted)', 'eeco-wco'); ?></p>
+                    </a>
+                    <p><?php printf(__("%d pieces, %s", 'eeco-wco'), $product->product_quantity, wc_price(get_option( 'woocommerce_tax_display_shop' ) === 'incl' ? $product->line_total + $product->tax_total : $product->line_total)) ?></p>
+                </div>
+            </div>
+            <?php
+            }
+            ?>
+        </div>
+        <h2 class="title"><?php printf(__('Total: %s', 'eeco-wco'), wc_price($total))?></h2>
+    </div>
+    <div class="eeco-wco-row last-row">
+        <?php if($offer->offer_status == 'active'): ?>
+            <div class="eeco_wco_edit_offer">
+                <?php if ($offer->offer_type == 'percentage') {
+                    $total = (1 - ($offer->offer_value / 100)) * $total; 
+                } else if ($offer->offer_type == 'price') {
+                    $total = $total - $offer->offer_value;
+                } ?>
+                <h2 class="title-edit"><?php _e('Edit existing discount','eeco-wco');?> (<?php echo get_offer_discount($offer); ?>)</h2>
+                <div class="eeco-wco-admin-group">
+                    <label><strong><?php _e('Type ', 'eeco-wco'); ?></strong></label>
+                    <div class="wco-counter-type-wrapper">
+                        <div class="select-type-wrapper">
+                            <select id="wco_counter_type">
+                                <?php echo $offer->offer_type; ?>
+                                <option value="price" <?php selected($offer->offer_type, 'price')?>>
+                                    <?php _e('Price', 'eeco-wco');?>
+                                </option>
+                                <option value="percentage" <?php selected($offer->offer_type, 'percentage')?>>
+                                    <?php _e('Percentage', 'eeco-wco');?>
+                                </option>
+                            </select>
+                            <div class="tooltip">
+                                <i class="fas fa-question-circle"></i>
+                                <span class="tooltiptext"><?php _e('Choose whether the price discount is given as a percentage or in euros', 'eeco-wco');?></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="eeco-wco-admin-group taxes" <?php if ($offer->offer_type == 'percentage') { echo ' style="display:none;"'; } ?>>
+                    <label><strong><?php _e('Calculate the discount', 'eeco-wco'); ?></strong></label>
+                    <div class="wco-calculate-taxes-wrapper">
+                        <div class="select-type-wrapper">
+                            <select id="wco_calculate_taxes">
+                                <?php echo $offer->offer_taxes; ?>
+                                <option value="taxable" <?php selected($offer->offer_taxes, 'taxable')?>>
+                                    <?php _e('From taxable price', 'eeco-wco');?>
+                                </option>
+                                <option value="tax-free" <?php selected($offer->offer_taxes, 'tax-free')?>>
+                                    <?php _e('From tax free price', 'eeco-wco');?>
+                                </option>
+                            </select>
+                            <div class="tooltip">
+                                <i class="fas fa-question-circle"></i>
+                                <span class="tooltiptext"><?php _e('Choose whether the discount is calculated from tax free or from taxable price', 'eeco-wco');?></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="eeco-wco-admin-group">
+                    <label><strong><?php _e('Value ', 'eeco-wco'); ?></strong></label>
+                    <div class="wco-admin-group-wrapper">
+                        <input type="text" id="wco_offer_value" value="<?php echo $offer->offer_value; ?>"></input>
+                        <span class="offer-type"><?php echo $offer->offer_type == 'percentage' ? '&#37;' : '&euro;' ?></span>
+                        <div class="tooltip">
+                            <i class="fas fa-question-circle"></i>
+                            <span class="tooltiptext"><?php _e('Indicate the amount in euros or as a percentage of the discount', 'eeco-wco');?></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="eeco-wco-admin-group">
+                    <label>
+                        <strong><?php _e('Expiry date', 'eeco-wco'); ?>:</strong>
+                    </label>
+                    <input class="expiry-date" id="wco_offer_expiry_date" value="<?php echo $offer->expiry_date; ?>"></input>
+                </div> 
+                <div class="wco-button-wrapper">
+                    <div class="eeco-wco-admin-group">
+                        <div class="button edit" id="wco_edit_counter_offer">
+                            <?php _e('Edit offer', 'eeco-wco'); ?>
+                        </div>
+                    </div>
+        <?php else: ?>
+            <div class="eeco-wco-col">
+                <h2 class="title-create"><?php _e('Create new discount','eeco-wco');?></h2>
+                <div class="eeco-wco-admin-group">
+                    <label><strong><?php _e('Type ', 'eeco-wco'); ?></strong></label>
+                    <div class="select-type-wrapper">
+                        <select id="wco_type">
+                            <option value="price"><?php _e('Price ', 'eeco-wco'); ?></option>
+                            <option value="percentage"><?php _e('Percentage ', 'eeco-wco'); ?></option>
+                        </select>
+                        <div class="tooltip">
+                            <i class="fas fa-question-circle"></i>
+                            <span class="tooltiptext"><?php _e('Choose whether the price discount is given as a percentage or in euros', 'eeco-wco');?></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="eeco-wco-admin-group taxes" <?php if ($offer->offer_type == 'percentage') { echo ' style="display:none;"'; } ?>>
+                    <label><strong><?php _e('Calculate the discount', 'eeco-wco'); ?></strong></label>
+                    <div class="wco-calculate-taxes-wrapper">
+                        <div class="select-type-wrapper">
+                            <select id="wco_calculate_taxes">
+                                <?php echo $offer->offer_taxes; ?>
+                                <option value="taxable" <?php selected($offer->offer_taxes, 'taxable')?>>
+                                    <?php _e('From taxable price', 'eeco-wco');?>
+                                </option>
+                                <option value="tax-free" <?php selected($offer->offer_taxes, 'tax-free')?>>
+                                    <?php _e('From tax free price', 'eeco-wco');?>
+                                </option>
+                            </select>
+                            <div class="tooltip">
+                                <i class="fas fa-question-circle"></i>
+                                <span class="tooltiptext"><?php _e('Choose whether the discount is calculated from tax free or from taxable price', 'eeco-wco');?></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="eeco-wco-admin-group">
+                    <label><strong><?php _e('Value ', 'eeco-wco'); ?></strong></label>
+                    <div class="wco-admin-group-wrapper">
+                        <input type="text" id="wco_value"></input>
+                        <span class="offer-type"><?php echo $offer->offer_type == 'percentage' ? '&#37;' : '&euro;' ?></span>
+                        <div class="tooltip">
+                            <i class="fas fa-question-circle"></i>
+                            <span class="tooltiptext"><?php _e('Indicate the amount in euros or as a percentage of the discount', 'eeco-wco');?></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="eeco-wco-admin-group">
+                    <label>
+                        <strong><?php _e('Expiry date', 'eeco-wco'); ?>:</strong>
+                    </label>
+                    <input class="expiry-date" id="wco_expiry_date" value="<?php echo $offer->expiry_date; ?>"></input>
+                </div> 
+                <div class="wco-button-wrapper">
+                    <div class="eeco-wco-admin-group">
+                        <div class="button send" id="wco_send_counter_offer">
+                            <?php _e('Send offer', 'eeco-wco'); ?>
+                        </div>
+                    </div>
+        <?php endif; ?>
+                            <div class="eeco-wco-admin-group">
+                                <div class="button" id="wco_decline_offer">
+                                    <?php _e('Decline offer', 'eeco-wco'); ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+        </div>
+        <div class='wco-alert-div wco-alert-div-success'>
+            <div class='alert-wrapper'>
+                <div class='alert-message'>
+                    <?php _e('Quote successfully sent', 'eeco-wco'); ?>
+                </div>
+            </div>
+        </div>
+        <div class='wco-alert-div wco-alert-div-declined'>
+            <div class='alert-wrapper'>
+                <div class='alert-message'>
+                    <?php _e('Quote successfully declined', 'eeco-wco'); ?>
+                </div>
+            </div>
+        </div>
+        <div class='wco-alert-div wco-alert-div-failure'>
+            <div class='alert-error-wrapper'>
+                <div class='alert-error-message'>
+                    <?php _e('Request failed. Look at console for more information.', 'eeco-wco'); ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

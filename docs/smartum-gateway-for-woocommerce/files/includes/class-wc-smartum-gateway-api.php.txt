@@ -1,0 +1,209 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // exit if accessed directly
+}
+
+/**
+ * handles the smartum api
+ */
+class WC_smartum_gateway_api {
+    /**
+     * url for stating api
+     */
+    public $staging_url = 'https://api.staging.smartum.fi/';
+
+    /**
+     * url for production api
+     */
+    public $production_url = 'https://api.smartum.fi/';
+
+    /**
+     * curren url in use
+     */
+    public $url = 'https://api.staging.smartum.fi/';
+
+    /**
+     * the gateway object
+     */
+    public $gateway = null;
+
+    /**
+     * response url
+     */
+    public $response_url = null;
+
+    public $venue = null;
+
+    /**
+     * constructing the class
+     * 
+     * @param WC_Smartum_Gateway $gateway The gateway class instance
+     */
+    public function __construct($gateway){
+        $this->gateway = $gateway;
+
+        $this->url = $gateway->environment == 'staging' ? $this->staging_url : $this->production_url;
+
+    }
+
+    /**
+     * retrieves the venue information
+     * 
+     * @param int $venue_id The venue id to get
+     * @return array Venue data
+     */
+    public function get_venue($venue_id){
+
+        if(!$venue_id){
+            $venue_id = $this->gateway->venue_id;
+        }
+
+        if($venue = wp_cache_get($venue_id)){
+            return $venue;
+        }
+
+        $data = $this->get_request($this->url . "venues/$venue_id");
+
+        $response = $data['response'];
+        $code = $data['code'];
+
+        if(!$response){
+            return false;
+        }
+        else if($code !== 200 || !isset($response['data'])){
+            if(isset($response['error']) && WCG_SMARTUM_DEBUG_MODE){
+                error_log(json_encode($response['error']));
+            }
+            return false;
+        }
+
+        wp_cache_set($venue_id, $response['data'], '', 3600);
+
+        return $response['data'];
+    }
+
+    /**
+     * gets the valid benefits for a venue
+     * 
+     * @param int $venue_id Venue to get valid benefits for
+     * @return array Valid benefits
+     */
+    public function get_valid_benefits($venue_id = null){
+        if($venue = $this->get_venue($venue_id)){
+            $benefits = $venue['accepted_benefits'];
+        }
+        else{
+            return new WP_Error(__('Failed to get the venue'));
+        }
+        
+        return $benefits;
+    }
+
+    /**
+     * fetches the checkout url
+     * 
+     * @param WC_Order $order The WC_Order class instance
+     * @param string $cancel_url Return url if payment canceled
+     * @param string $name Name of the order
+     * @param string $benefit Name of the benefit type
+     * @return string The checkout url
+     */
+    public function get_checkout_url($order, $cancel_url, $name, $benefit){
+        $request_args = array(
+            'venue' => $this->gateway->venue_id,
+            'amount' => intval(round($order->get_total(), 2) * 100),
+            'product_name' => $name,
+            'success_url' => $order->get_checkout_order_received_url().'&',
+            'benefit' => $benefit,
+            'cancel_url' => $cancel_url,
+            'nonce' => wp_create_nonce()
+        );
+
+        $data = $this->post_request($this->url . 'checkout', $request_args);
+
+        $response = $data['response'];
+        $code = $data['code'];
+
+        if(!$response){
+            wc_add_notice( __('Error connecting to payment provider', 'wc-smartum-gateway'), 'error' );
+
+            return false;
+        }
+        else if($code !== 200 || !isset($response['data']['url'])){
+
+            if(isset($response['error']) && WCG_SMARTUM_DEBUG_MODE){
+                error_log(json_encode($response['error']));
+
+                wc_add_notice( __('Error processing the order', 'wc-smartum-gateway'), 'error' );
+            }
+
+            return false;
+        }
+
+        return $response['data']['url'];
+    }
+    
+    /**
+     * makes a curl post request to the set endpoint
+     * 
+     * @param string $url Endpoint for the request
+     * @param array $body Array of data to be used in the request body
+     * @return array Request response
+     */
+    public function post_request($url, $body){
+        $ch = curl_init();
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+            'Content-Type: application/json'
+        ));
+
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+        if(WCG_SMARTUM_DEBUG_MODE){
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
+        
+        $response = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_RESPONSE_CODE );
+        curl_close ($ch);
+
+        $response = json_decode($response, true);
+
+        return array('code' => $code, 'response' => $response);
+    }
+
+    /**
+     * makes curl get request
+     * 
+     * @param string $url The ednpoint to send the request to
+     * @return array Request response
+     */
+    public function get_request($url){
+        $ch = curl_init();
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+            'Content-Type: application/json'
+        ));
+
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+        if(WCG_SMARTUM_DEBUG_MODE){
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        }
+    
+        $response = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_RESPONSE_CODE );
+        curl_close ($ch);
+
+        $response = json_decode($response, true);
+
+        return array('code' => $code, 'response' => $response);
+    }
+}

@@ -1,0 +1,128 @@
+<div class="wrap">
+    <h1><?php echo _x('Reports', 'Page title', 'eeco-wco'); ?></h1>
+    <form method="get">
+        <div class="wco-selectors">
+            <input type="hidden" name="page" value="eeco-cart-offers">
+            <button type="submit" class="button button-primary" name="cart_offers_csv" value="reports"><?php _e('Download csv', 'eeco-wco') ?></button>
+        </div>
+        <div class="date-wrapper">
+            <input type="text" class="date" name="start_date" value="<?php echo isset($_GET['start_date']) ? $_GET['start_date'] : ''; ?>" placeholder="<?php _e('Start date', 'eeco-wco'); ?>"/>
+            <input type="text" class="date" name="end_date" value="<?php echo isset($_GET['end_date']) ? $_GET['end_date'] : ''; ?>" placeholder="<?php _e('End date', 'eeco-wco'); ?>"/>
+            <button type="button" class="button" name="filter_dates"><?php _e('Filter', 'eeco-wco'); ?></button>
+        </div>
+    </form>
+    <table class="wco-reports-table quotations">
+        <thead>
+            <tr>
+                <th><?php echo _x('Quote requests', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="1"></span></th>
+                <th colspan="2"><?php echo _x('Amount', 'Reports table', 'eeco-wco'); ?></th>
+                <th colspan="2"><?php echo _x('Total (excluding taxes)', 'Reports table', 'eeco-wco'); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <th><?php echo _x('Quote requests received', 'Reports table', 'eeco-wco'); ?></td>
+                <td colspan="2"><?php echo $reports['total_cart_offers']['total']; ?></td>
+                <td colspan="2"><?php echo wc_price($reports['total_cart_offers']['value']); ?> <span class="dashicons dashicons-editor-help" data-pointer="2"></span></td>
+            </tr>
+            <tr>
+                <th><?php echo _x('Quote requests open', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="3"></span></td>
+                <td><?php echo $reports['open_cart_offers']['total']; ?></td>
+                <td><?php echo number_format($reports['open_cart_offers']['percentage'], 2, '.', ''); ?>&#37;</td>
+                <td><?php echo wc_price($reports['open_cart_offers']['value']); ?> <span class="dashicons dashicons-editor-help" data-pointer="2"></span></td>
+                <td><?php echo number_format($reports['open_cart_offers']['value_percentage'], 2, '.', ''); ?>&#37;</td>
+            </tr>
+            <tr>
+                <th><?php echo _x('Quote requests declined', 'Reports table', 'eeco-wco'); ?></td>
+                <td><?php echo $reports['offers_canceled']['total']; ?></td>
+                <td><?php echo number_format($reports['offers_canceled']['percentage'], 2, '.', ''); ?>&#37;</td>
+                <td><?php echo wc_price($reports['offers_canceled']['value']); ?></td>
+                <td><?php echo number_format($reports['offers_canceled']['value_percentage'], 2, '.', ''); ?>&#37;</td>
+            </tr>
+            <tr>
+                <th><?php echo _x('Quotes submitted', 'Reports table', 'eeco-wco'); ?></td>
+                <td><?php echo $reports['offers_submitted']['total']; ?></td>
+                <td><?php echo number_format($reports['offers_submitted']['percentage'], 2, '.', ''); ?>&#37;</td>
+                <td><?php echo wc_price($reports['offers_submitted']['value']); ?> <span class="dashicons dashicons-editor-help" data-pointer="4"></span></td>
+                <td><?php echo number_format($reports['offers_submitted']['value_percentage'], 2, '.', ''); ?>&#37;</td>
+            </tr>
+            <tr>
+                <th>- <?php echo _x('Sales received from quotes', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="5"></span></td>
+                <td><?php echo $reports['sales_received']['total']; ?></td>
+                <td><?php echo number_format($reports['sales_received']['percentage'], 2, '.', ''); ?>&#37;</td>
+                <td><?php echo wc_price($reports['sales_received']['value']); ?></td>
+                <td><?php echo number_format($reports['sales_received']['value_percentage'], 2, '.', ''); ?>&#37;</td>
+            </tr>
+            <tr>
+                <th>- <?php echo _x('Rejected quotes', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="6"></span></td>
+                <td><?php echo $reports['customer_declined']['total']; ?></td>
+                <td><?php echo number_format($reports['customer_declined']['percentage'], 2, '.', ''); ?>&#37;</td>
+                <td><?php echo wc_price($reports['customer_declined']['value']); ?></td>
+                <td><?php echo number_format($reports['customer_declined']['value_percentage'], 2, '.', ''); ?>&#37;</td>
+            </tr>
+            <tr>
+                <th>- <?php echo _x('Quotes open', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="7"></span></td>
+                <td><?php echo $reports['open_offers']['total']; ?></td>
+                <td><?php echo number_format($reports['open_offers']['percentage'], 2, '.', ''); ?>&#37;</td>
+                <td><?php echo wc_price($reports['open_offers']['value']); ?></td>
+                <td><?php echo number_format($reports['open_offers']['value_percentage'], 2, '.', ''); ?>&#37;</td>
+            </tr>
+            <tr>
+                <th>- <?php echo _x('Expired quotes', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="8"></span></td>
+                <td><?php echo $reports['expired_offers']['total']; ?></td>
+                <td><?php echo number_format($reports['expired_offers']['percentage'], 2, '.', ''); ?>&#37;</td>
+                <td><?php echo wc_price($reports['expired_offers']['value']); ?></td>
+                <td><?php echo number_format($reports['expired_offers']['value_percentage'], 2, '.', ''); ?>&#37;</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table class="wco-reports-table results">
+        <thead>
+            <tr>
+                <th><?php echo _x('Results for quotes', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="9"></span></th>
+                <th><?php echo _x('Amount', 'Reports table', 'eeco-wco'); ?></th>
+                <th><?php echo _x('Total (excluding taxes)', 'Reports table', 'eeco-wco'); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <th><?php echo _x('Sales received from quotes', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="10"></span></td>
+                <td><?php echo $reports['sales_received_admin']['total']; ?></td>
+                <td><?php echo wc_price($reports['sales_received_admin']['value']); ?></td>
+            </tr>
+            <tr>
+                <th><?php echo _x('Rejected quotes', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="11"></span></td>
+                <td><?php echo $reports['customer_declined_admin']['total']; ?></td>
+                <td><?php echo wc_price($reports['customer_declined_admin']['value']); ?></td>
+            </tr>
+            <tr>
+                <th><?php echo _x('Expired quotes', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="12"></span></td>
+                <td><?php echo $reports['expired_offers_admin']['total']; ?></td>
+                <td><?php echo wc_price($reports['expired_offers_admin']['value']); ?></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <table class="wco-reports-table other">
+        <thead>
+            <tr>
+                <th><?php echo _x('Others', 'Reports table', 'eeco-wco'); ?> <span class="dashicons dashicons-editor-help" data-pointer="13"></span></th>
+                <th><?php echo _x('Amount', 'Reports table', 'eeco-wco'); ?></th>
+                <th><?php echo _x('Total (excluding taxes)', 'Reports table', 'eeco-wco'); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <th><?php printf('%s<br>(%s)', _x('Conversion rate', 'Reports table', 'eeco-wco'), _x('From a quote request to a purchase', 'Reports table', 'eeco-wco')); ?></td>
+                <td><?php echo number_format($reports['conversion_rates_a']['quote_to_sale'], 2, '.', ''); ?>&#37;</td>
+                <td><?php echo number_format($reports['conversion_rates_a']['quote_to_sale_percentage'], 2, '.', ''); ?>&#37;</td>
+            </tr>
+            <tr>
+                <th><?php printf('%s<br>(%s)', _x('Conversion rate', 'Reports table', 'eeco-wco'), _x('From a quote to a purchase', 'Reports table', 'eeco-wco')); ?></td>
+                <td><?php echo number_format($reports['conversion_rates_b']['proposal_to_sale'], 2, '.', ''); ?>&#37;</td>
+                <td><?php echo number_format($reports['conversion_rates_b']['proposal_to_sale_percentage'], 2, '.', ''); ?>&#37;</td>
+            </tr>
+        </tbody>
+    </table>
+</div>

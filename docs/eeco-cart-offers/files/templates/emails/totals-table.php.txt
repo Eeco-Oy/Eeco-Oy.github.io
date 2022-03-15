@@ -1,0 +1,16 @@
+<table style="width: 100%">
+    <tbody>
+        <tr>
+            <th><?php echo _x('Sub total', 'Totals table', 'eeco-wco') ?></th>
+            <td><?php echo wc_price($offer['total']) ?></td>
+        </tr>
+        <tr>
+            <th><?php echo _x('Discount', 'Totals table', 'eeco-wco') ?></th>
+            <td><?php echo wc_price($offer['discount']) ?></td>
+        </tr>
+        <tr>
+            <th><?php echo _x('Total', 'Totals table', 'eeco-wco') ?></th>
+            <td><?php echo $offer['discounted_price'] ?></td>
+        </tr>
+    </tbody>
+</table>

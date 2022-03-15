@@ -1,0 +1,108 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // exit if accessed directly
+}
+
+require_once plugin_dir_path( __DIR__ ) . 'vendor/autoload.php';
+
+use Lcobucci\JWT\Signer\Key\InMemory;
+use Lcobucci\JWT\Configuration;
+use Lcobucci\JWT\Signer\Ecdsa\Sha512;
+use Lcobucci\JWT\Validation\Constraint\ValidAt;
+use Lcobucci\JWT\Validation\Constraint\SignedWith;
+use Lcobucci\Clock\FrozenClock;
+
+/**
+ * handle the smartum api redirect
+ */
+class WC_Smartum_Gateway_Handler {
+    private $gateway = null;
+
+    /**
+     * add action for handling the response
+     * 
+     * @param WC_Smartum_Gateway $gateway The gateway
+     */
+    public function __construct($gateway){
+        $this->gateway = $gateway;
+
+        add_action( 'woocommerce_thankyou_wc-smartum', array($this, 'handle_order') ); 
+    }
+
+    /**
+     * check if response was valid and update order
+     * 
+     * @param int $id Order id
+     */
+    public function handle_order($id){
+        $order = wc_get_order($id);
+
+        if($order && $order->needs_payment()){
+            if(!isset($_GET['jwt'])){
+                $order->set_status('cancelled', __('Smartum payment failed: missing return information', 'wc-smartum-gateway'));
+            }
+            else if(!$data = $this->jwt_is_valid($_GET['jwt'])){
+                $order->set_status('cancelled', __('Smartum payment failed: invalid payment token', 'wc-smartum-gateway'));
+            }
+            else if(!wp_verify_nonce($data->get('nonce'))){
+                $order->set_status('cancelled', __('Smartum payment failed: invalid validation nonce', 'wc-smartum-gateway'));
+            }
+            else{
+                $order->payment_complete($data->get('transaction'));
+                //translators: Order note which includes the transaction id
+                $order->add_order_note(sprintf( __( 'Order paid using Smartum Checkout. Transaction id: %s', 'wc-smartum-gateway' ), $data->get('transaction') ));
+
+                update_post_meta($order->get_id(), '_smartum_transaction_id', $data->get('transaction'));
+
+                /**
+                 * payment has succeeded and order status has been updated
+                 * @param WC_Order $order The order object
+                 */
+                do_action('smartum_gateway_payment_complete', $order);
+            }
+            
+        }
+    }
+
+    /**
+     * validate the jwt token
+     * 
+     * @param string $jwt The jwt token
+     * @return boolean Whether jwt token is valid or not
+     */
+    private function jwt_is_valid($jwt){
+        $signer = Sha512::create();
+
+        $config = Configuration::forSymmetricSigner(
+            $signer,
+            InMemory::plainText($this->gateway->public_key)
+        );
+
+        try {
+            $token = $config->parser()->parse((string)$jwt);
+        } catch (\Throwable $th) {
+            return false;
+        }
+
+        $constraints = [
+            new SignedWith($signer, $config->verificationKey()),
+            new ValidAt(new FrozenClock(new DateTimeImmutable()))
+        ];
+
+        try {
+            $valid = $config->validator()->validate($token, ...$constraints);
+        } catch (\Throwable $th) {
+            return false;
+        }
+
+        if($valid){
+            return $token->claims();
+        }
+        else{
+            return false;
+        }
+
+        return true;
+    }
+}

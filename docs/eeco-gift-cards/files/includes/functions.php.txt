@@ -201,7 +201,8 @@ function eeco_gift_cards_render_template($card, $type){
             "shopOpen" => __( 'Web shop is open', 'eeco-gift-cards' ),
             "customerservice" => __( 'Customer service:', 'eeco-gift-cards' ),
             "phonenumber" => __( 'Phone number:', 'eeco-gift-cards' ),
-            "message" => __( 'Message:', 'eeco_gift_cards' )
+            "message" => __( 'Message:', 'eeco_gift_cards' ),
+            "gift_card_code" => _x('Gift card code', 'Gift card pdf', 'eeco-gift-cards')
         ]
     ];
     // Add filter for $model

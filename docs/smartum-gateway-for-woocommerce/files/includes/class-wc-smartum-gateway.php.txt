@@ -1,0 +1,295 @@
+<?php 
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // exit if accessed directly
+}
+
+class WC_Smartum_Gateway extends WC_Payment_Gateway {
+
+    /**
+     * the benefit type of products in cart
+     * cannot be null after availability check
+     */
+    private $benefit = null;
+
+    /**
+     * Prevent showing admin notice about invalid venue twice
+     */
+    public static $invalid_venue_notice_shown = false;
+
+    /**
+     * constructing
+     * binding a few actions and adding gateway defaults
+     */
+    public function __construct(){
+        //setting the required variables
+        $this->id                = 'wc-smartum';
+        $this->has_fields        = false;
+		$this->method_title      = __( 'Smartum', 'woocommerce' );
+		$this->method_description = __( 'With this plugin your customers can pay with Smartum benefits', 'wc-smartum-gateway' );
+        $this->supports           = array('products');
+        
+        // loading settings
+		$this->init_form_fields();
+        $this->init_settings();
+        
+        if($this->get_option('smartum_icon') && $this->get_option('smartum_icon') !== 'no_logo'){
+            $this->icon = "https://badges.smartum.fi/button/{$this->get_option('smartum_icon')}.svg";
+        }
+        $this->title = $this->get_option('title');
+        $this->description = $this->get_option('description');
+        $this->environment = $this->get_option('environment');
+        $this->enabled = $this->get_option('enabled') === 'yes';
+        $this->venue_id = $this->get_option('venue_id');
+        $this->public_key = $this->environment == 'staging' ? WCG_SMARTUM_STAGING : WCG_SMARTUM_PRODUCTION;
+
+        add_action( 'woocommerce_cart_calculate_fees', array($this, 'add_fee' )) ;
+
+        if(is_admin()){
+            add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
+            add_action( 'admin_notices', array($this, 'notices'), 999 );
+            add_filter( 'woocommerce_settings_api_sanitized_fields_' . $this->id, array($this, 'check_connection') );
+        }
+
+        new WC_Smartum_Gateway_Handler($this);
+    }
+
+    /**
+     * add fee to cart if necessary
+     * 
+     * @param WC_Cart $cart The cart object
+     */
+    public function add_fee($cart){
+        if(is_admin() || ! defined( 'DOING_AJAX' )){
+            return;
+        }
+        if(WC()->session->get('chosen_payment_method') === 'wc-smartum'){
+            $fee = floatval($this->get_option('fee'));
+            $fee_type = $this->get_option('fee_type');
+
+            if($fee && $fee > 0){
+                if($fee_type === 'percentage'){
+                    $fee = ($cart->get_cart_contents_total() + $cart->get_cart_contents_tax()) * ($fee / 100);
+                }
+    
+                $cart->add_fee(__('Payment Gateway Fee (Smartum)', 'wc-smartum-gateway'), $fee, false);
+            }
+        }
+    }
+    
+    /**
+     * create the admin form settings fields
+     */
+    public function init_form_fields(){
+        $this->form_fields = include 'wc-smartum-settings.php';
+    }
+
+    /**
+     * processing the payment if using smartum gateway
+     * 
+     * @param int $order_id The order id
+     * @return array The result with checkout url
+     */
+    public function process_payment($order_id){
+        $order = wc_get_order($order_id);
+
+        //if order doesn't need payment redirect to thank you page
+        if(!$order->needs_payment()){
+            return array(
+                'result' => 'success',
+                'redirect' => $this->get_return_url($order)
+            );
+        }
+
+        //process order items
+        foreach ($order->get_items() as $item) {
+            $item_data = $item->get_data();
+
+            if(isset($name)){
+                $name .= ', '.$item_data['name'];
+            }
+            else{
+                $name = $item_data['name'];
+            }
+        }
+
+        //translators: Order name 
+        $name = sprintf( __( 'Your order in %s %s', 'wc-smartum-gateway' ), get_site_url(), $name );
+
+        $api = new WC_smartum_gateway_api($this);
+        
+        $cancel_url = $order->get_cancel_order_url_raw();
+
+        //get the checkout url
+        if($url = $api->get_checkout_url($order, $cancel_url, $name, $this->benefit)){
+            return array(
+                'result' => 'success',
+                'redirect' => $url
+            );
+        }
+            
+        return;
+    }
+
+    /**
+     * checks whether the smartum gateway is enabled for the given cart
+     * 
+     * @return boolean Whether gateway is available for this cart
+     */
+    public function is_available(){        
+        if(!$this->enabled || !WC()->cart){
+            return false;
+        }
+        else if(empty($this->venue_id)){
+            return false;
+        }
+
+        $order_id = absint( get_query_var( 'order-pay' ) );
+
+        //Check if benefit type has been set globally
+        if($this->get_option('use_globally') === 'yes' && !empty($this->get_option('global_benefit_type')) && $this->get_option('global_benefit_type') !== 'none'){
+            $this->benefit = $this->get_option('global_benefit_type');
+        }
+        else if($order_id > 0){
+            $order = wc_get_order($order_id);
+
+            //Check cart item benefit types
+            foreach ($order->get_items() as $item) {
+                if ($item->get_variation_id()) {
+                    $type = get_post_meta($item->get_variation_id(), 'wcsg_variable_product_type', true);
+                } else {
+                    $type = get_post_meta($item->get_product_id(), 'wcsg_product_type', true);
+                }
+
+                if(!$this->check_for_valid_items($type)){
+                    return false;
+                }
+
+                $this->benefit = $type;
+            }
+        }
+        else {
+            $cart = WC()->cart->get_cart();
+        
+            foreach ($cart as $item) {
+                if ($item['variation_id'] != 0) {
+                    $type = get_post_meta($item['variation_id'], 'wcsg_variable_product_type', true);
+                } else {
+                    $type = get_post_meta($item['product_id'], 'wcsg_product_type', true);
+                }
+    
+                if(!$this->check_for_valid_items($type)){
+                    return false;
+                }
+
+                $this->benefit = $type;
+            }
+        }
+
+        /**
+         * is smartum payment gateway available for given cart or not
+         * some checks have already been done before this so this filter will not fire always
+         * 
+         * @param boolean $true Whether is available
+         * @param null $null Deprecated param
+         * @return boolean Is avaiable
+         */
+        return apply_filters('is_smartum_gateway_available', true, null);
+    }
+
+    /**
+     * Checks whether given cart/order item is valid for smartum checkout
+     * 
+     * @param string $type The benefit type
+     * @return boolean Whether valid or not
+     */
+    public function check_for_valid_items($type){
+        $benefits = get_option('eeco_smartum_valid_benefits');
+
+        if(empty($type) || $type==='none'){
+            return false;
+        }
+        else if(!in_array($type, $benefits)){
+            return false;
+        }
+        else if($this->benefit && $this->benefit !== $type){
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Check smartum connection and if the venue id is valid
+     * Saves valid product types to be used in cart validation
+     * 
+     * @param array $settings The settings
+     * @return array Settings
+     */
+    public function check_connection($settings){
+        $api = new WC_smartum_gateway_api($this);
+
+        $benefits = $api->get_valid_benefits($settings['venue_id']);
+
+        if(is_wp_error($benefits)){
+            update_option('eeco_smartum_is_venue_valid', '0');
+            update_option('eeco_smartum_is_venue_invalid_message', '<strong>'.__('Failed to validate venue. Make sure your venue id is valid', 'wc-smartum-gateway').'</strong>');
+            update_option('eeco_smartum_valid_benefits', []);
+        }
+        else if(empty($benefits)){
+            update_option('eeco_smartum_is_venue_valid', '0');
+            update_option('eeco_smartum_is_venue_invalid_message', __('Set venue has no active benefit types', 'wc-smartum-gateway'));
+            update_option('eeco_smartum_valid_benefits', []);
+        }
+        else{
+            update_option('eeco_smartum_is_venue_valid', '1');
+            delete_option('eeco_smartum_is_venue_invalid_message');
+            update_option('eeco_smartum_valid_benefits', $benefits);
+        }
+
+        if($settings['smartum_licence'] !== get_option('smartum_licence')){
+            update_option( 'smartum_licence', $settings['smartum_licence']);
+        }
+
+        if(get_option('eeco_smartum_is_venue_valid') === '0'){
+            $settings['enabled'] = 'no';
+        }
+        
+        return $settings;
+    }
+
+    /**
+     * Print admin notices if saving the venue fails
+     */
+    public function notices(){
+        if ($this->is_settings_page()) {
+            if (self::$invalid_venue_notice_shown === true) {
+                return;
+            }
+
+            if(get_option('eeco_smartum_is_venue_valid') === '0'){
+                ?>
+                    <div class="notice notice-error is-dismissible">
+                        <p><?php echo get_option('eeco_smartum_is_venue_invalid_message') ?></p>
+                    </div>
+                <?php
+
+                delete_option( 'eeco_smartum_is_venue_valid' );
+            }
+
+            self::$invalid_venue_notice_shown = true;
+        }
+    }
+
+    /**
+     * Check if currently on smartum settings page
+     * 
+     * @return boolean Is settings page
+     */
+    public function is_settings_page(){
+        return isset($_GET['page']) && $_GET['page'] === 'wc-settings' && 
+        isset($_GET['tab']) && $_GET['tab'] === 'checkout' && 
+        isset($_GET['section']) && $_GET['section'] === 'wc-smartum';
+    }
+
+}

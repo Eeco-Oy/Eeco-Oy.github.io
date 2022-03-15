@@ -1,0 +1,103 @@
+<div class="wco-group">
+    <label for="wco_product_conditions_rule"><strong><?php _e('Product condition rule', 'eeco-wco') ?></strong> <span class="dashicons dashicons-editor-help" data-pointer="13"></span></label>
+    <select name="wco_product_conditions_rule" id="wco_product_conditions_rule">
+        <option value="or" <?php selected(get_option('wco_product_conditions_rule'), 'or') ?>><?php _e('At least one condition must match', 'eeco-wco')?></option>
+        <option value="and" <?php selected(get_option('wco_product_conditions_rule'), 'and') ?>><?php _e('All conditions must match', 'eeco-wco')?></option>
+    </select>
+    <div class="wco-template wco-hidden-template wco-condition">    
+        <input type="checkbox" class="wco-remove">
+            <div class="condition-wrapper">
+                <label for=""><?php _e('Condition', 'eeco-wco') ?></label>
+                <select name="<?php echo $name ?>[index][]" class="wco-condition-term wco-form-item" disabled>
+                    <option value="product"><?php _e('Product', 'eeco-wco') ?></option>
+                    <?php foreach(get_object_taxonomies('product', 'objects') as $tax ): ?>
+                        <?php if($tax->public): ?>
+                            <option value="<?php echo $tax->name ?>"><?php echo $tax->label ?></option>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        <div class="wco-operator">
+            <label class="switch">
+                <input name="<?php echo $name ?>[index][]" class="switch-input wco-form-item" type="checkbox" checked value="includes" disabled/>
+                <span class="switch-label" data-on="<?php _e('Includes', 'eeco-wco') ?>" data-off="<?php _e('Excludes', 'eeco-wco') ?>"></span> 
+                <span class="switch-handle"></span> 
+            </label>
+        </div> 
+        <div class="wco-item-picker">
+            <label for=""><?php _e('Name', 'eeco-wco') ?></label>
+            <input type="hidden" class="wco-search-text" value="<?php _e('Searching...', 'eeco-wco')?>" disabled>
+            <div class="wco-item-click">
+            </div>
+            <div class="wco-item-list wco-hidden">
+                <input type="text" class="wco-item-search">
+                <div class="wco-item-result-list"></div>
+            </div>
+        </div>
+    </div>
+    <div class="wco-product-conditions" data-name="<?php echo $name ?>">
+        <div class="wco-offer-row">
+            <label>
+                <strong><?php echo _x('Product conditions','description text for conditions','eeco-wco') ?></strong>
+            </label>
+            <i><?php _e("The products in user's cart must fulfil these conditions before they can submit a quote request",'eeco-wco') ?></i>
+            <?php $conditions = get_option('wco_product_conditions', []);
+            foreach ($conditions as $key => $condition): ?>
+                <div class="wco-conditions-existing wco-condition">
+                    <input type="checkbox" class="wco-remove">
+                    <div class="condition-wrapper">
+                        <label for=""><strong><?php _e('Condition', 'eeco-wco') ?></strong></label>
+                        <select name="<?php echo $name ?>[<?php echo $key?>][]" class="wco-condition-term wco-form-item">
+                            <option value="0"><?php _e('None', 'eeco-wco') ?></option>
+                            <option value="product" <?php selected($condition[0], 'product')?>><?php _e('Product', 'eeco-wco') ?></option>
+                            <?php foreach(get_object_taxonomies('product', 'objects') as $tax ): ?>
+                                <?php if($tax->public): ?>
+                                    <option value="<?php echo $tax->name ?>" <?php selected($condition[0], $tax->name)?>><?php echo $tax->label ?></option>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="wco-operator">
+                        <label class="switch">
+                            <input class="switch-input wco-form-item" type="checkbox" <?php checked( $condition[1], 'includes' ) ?>/>
+                            <input type="hidden" name="<?php echo $name ?>[<?php echo $key?>][]" class="wco-form-item" value="<?php echo $condition[1] ?>">
+                            <span class="switch-label" data-on="<?php _e('Includes', 'eeco-wco') ?>" data-off="<?php _e('Excludes', 'eeco-wco') ?>"></span> 
+                            <span class="switch-handle"></span> 
+                        </label>
+                    </div>
+                    <div class="wco-item-picker">
+                        <label for=""><strong> <?php _e('Name', 'eeco-wco') ?> </strong></label>
+                        <input type="hidden" class="wco-search-text" value="<?php _e('Searching...', 'eeco-wco')?>">
+                        <div class="wco-item-click">
+                            <?php foreach($condition[2] as $value){
+                                if(is_numeric($value)){ 
+                                    $object = wc_get_product( $value );
+                                    if($object){
+                                        ?>
+                                            <div class="wco_product_conditions"><?php echo $object->get_name() . " (" . $object->get_sku() . ") "; ?><span class="wco-delete">x</span><input type="hidden"  name="wco_product_conditions[<?php echo $key; ?>][2][]" value="<?php echo $value; ?>" ></div>
+                                        <?php
+                                    }else {
+                                        $object = get_term_by('id', $value, 'product_cat');
+                                        ?>
+                                            <div class="wco_product_conditions"><?php echo $object->name; ?><span class="wco-delete">x</span><input type="hidden"  name="wco_product_conditions[<?php echo $key; ?>][2][]" value="<?php echo $value; ?>" ></div>
+                                        <?php
+                                    }
+                                    ?>
+                                    
+                                <?php }
+                            } ?> 
+                        </div>
+                        <div class="wco-item-list wco-hidden">
+                            <input type="text" class="wco-item-search" placeholder="<?php _e('Start typing...', 'eeco-wco') ?>">
+                            <div class="wco-item-result-list"></div>
+                        </div>
+                    </div>
+                </div>  
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <div class="wco-button-group">
+        <button type="button" class="wco-add-condition button button-primary"><?php _e('Add condition', 'eeco-wco') ?></button>
+        <button type="button" class="wco-remove-condition button"><?php _e('Remove selected', 'eeco-wco') ?></button>
+    </div>
+</div>

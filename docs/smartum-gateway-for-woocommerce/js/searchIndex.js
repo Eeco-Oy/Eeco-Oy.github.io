@@ -111,6 +111,81 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Eeco-Smartum-Update-Client.html#property_license_option"
         },                {
+            "fqsen": "\\HookDocsGenerator",
+            "name": "HookDocsGenerator",
+            "summary": "Generate\u0020documentation\u0020for\u0020hooks\u0020in\u0020WC",
+            "url": "classes/HookDocsGenerator.html"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003AgetFilesToScan\u0028\u0029",
+            "name": "getFilesToScan",
+            "summary": "Get\u0020files\u0020to\u0020scan.",
+            "url": "classes/HookDocsGenerator.html#method_getFilesToScan"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003AgetFileURL\u0028\u0029",
+            "name": "getFileURL",
+            "summary": "Get\u0020file\u0020URL.",
+            "url": "classes/HookDocsGenerator.html#method_getFileURL"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003AgetFileLink\u0028\u0029",
+            "name": "getFileLink",
+            "summary": "Get\u0020file\u0020link.",
+            "url": "classes/HookDocsGenerator.html#method_getFileLink"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003AgetFiles\u0028\u0029",
+            "name": "getFiles",
+            "summary": "Get\u0020files.",
+            "url": "classes/HookDocsGenerator.html#method_getFiles"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003AgetHooks\u0028\u0029",
+            "name": "getHooks",
+            "summary": "Get\u0020hooks.",
+            "url": "classes/HookDocsGenerator.html#method_getHooks"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003AgetDelimitedListOutput\u0028\u0029",
+            "name": "getDelimitedListOutput",
+            "summary": "Get\u0020delimited\u0020list\u0020output.",
+            "url": "classes/HookDocsGenerator.html#method_getDelimitedListOutput"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003AgetJSOutput\u0028\u0029",
+            "name": "getJSOutput",
+            "summary": "Get\u0020JS\u0020output.",
+            "url": "classes/HookDocsGenerator.html#method_getJSOutput"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003AapplyChanges\u0028\u0029",
+            "name": "applyChanges",
+            "summary": "Apply\u0020changes\u0020to\u0020build\/.",
+            "url": "classes/HookDocsGenerator.html#method_applyChanges"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003ASOURCE_PATH",
+            "name": "SOURCE_PATH",
+            "summary": "Source\u0020path.",
+            "url": "classes/HookDocsGenerator.html#constant_SOURCE_PATH"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003AHOOKS_TEMPLATE_PATH",
+            "name": "HOOKS_TEMPLATE_PATH",
+            "summary": "Hooks\u0020template\u0020path.",
+            "url": "classes/HookDocsGenerator.html#constant_HOOKS_TEMPLATE_PATH"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003ASEARCH_INDEX_PATH",
+            "name": "SEARCH_INDEX_PATH",
+            "summary": "Search\u0020index\u0020path.",
+            "url": "classes/HookDocsGenerator.html#constant_SEARCH_INDEX_PATH"
+        },                {
+            "fqsen": "\\HookDocsGenerator\u003A\u003A\u0024found_files",
+            "name": "found_files",
+            "summary": "List\u0020of\u0020files\u0020found.",
+            "url": "classes/HookDocsGenerator.html#property_found_files"
+        },                {
+            "fqsen": "\\eeco_smartum_get_payment_gateway_settings\u0028\u0029",
+            "name": "eeco_smartum_get_payment_gateway_settings",
+            "summary": "get\u0020custom\u0020payment\u0020gateway\u0020settings\u0020with\u0020defaults",
+            "url": "namespaces/default.html#function_eeco_smartum_get_payment_gateway_settings"
+        },                {
+            "fqsen": "\\eeco_smartum_benefit_types\u0028\u0029",
+            "name": "eeco_smartum_benefit_types",
+            "summary": "Returns\u0020a\u0020list\u0020of\u0020smartum\u0020benefit\u0020types\u0020and\u0020the\u0020translations",
+            "url": "namespaces/default.html#function_eeco_smartum_benefit_types"
+        },                {
             "fqsen": "\\WC_Smartum_Gateway_Admin",
             "name": "WC_Smartum_Gateway_Admin",
             "summary": "class\u0020for\u0020handling\u0020the\u0020admin\u0020side\u0020of\u0020things",
@@ -121,24 +196,14 @@ Search.appendIndex(
             "summary": "bind\u0020actions",
             "url": "classes/WC-Smartum-Gateway-Admin.html#method___construct"
         },                {
-            "fqsen": "\\WC_Smartum_Gateway_Admin\u003A\u003Asettings_page\u0028\u0029",
-            "name": "settings_page",
-            "summary": "add\u0020general\u0020settings\u0020page",
-            "url": "classes/WC-Smartum-Gateway-Admin.html#method_settings_page"
-        },                {
             "fqsen": "\\WC_Smartum_Gateway_Admin\u003A\u003Asettings_init\u0028\u0029",
             "name": "settings_init",
             "summary": "register\u0020settings",
             "url": "classes/WC-Smartum-Gateway-Admin.html#method_settings_init"
         },                {
-            "fqsen": "\\WC_Smartum_Gateway_Admin\u003A\u003Asettings_html\u0028\u0029",
-            "name": "settings_html",
-            "summary": "settings\u0020html",
-            "url": "classes/WC-Smartum-Gateway-Admin.html#method_settings_html"
-        },                {
             "fqsen": "\\WC_Smartum_Gateway_Admin\u003A\u003Aadd_custom_fields\u0028\u0029",
             "name": "add_custom_fields",
-            "summary": "adds\u0020custom\u0020field\u0020to\u0020product\u0020card\nhandles\u0020setting\u0020the\u0020smartum\u0020product\u0020type",
+            "summary": "adds\u0020custom\u0020field\u0020to\u0020product\u0020card\nhandles\u0020setting\u0020the\u0020Smartum\u0020Benefit\u0020Type",
             "url": "classes/WC-Smartum-Gateway-Admin.html#method_add_custom_fields"
         },                {
             "fqsen": "\\WC_Smartum_Gateway_Admin\u003A\u003Aadd_variable_custom_fields\u0028\u0029",
@@ -148,12 +213,12 @@ Search.appendIndex(
         },                {
             "fqsen": "\\WC_Smartum_Gateway_Admin\u003A\u003Asave_custom_field_data\u0028\u0029",
             "name": "save_custom_field_data",
-            "summary": "saves\u0020the\u0020smartum\u0020product\u0020type\u0020selection",
+            "summary": "saves\u0020the\u0020Smartum\u0020Benefit\u0020Type\u0020selection",
             "url": "classes/WC-Smartum-Gateway-Admin.html#method_save_custom_field_data"
         },                {
             "fqsen": "\\WC_Smartum_Gateway_Admin\u003A\u003Asave_variation_custom_field_data\u0028\u0029",
             "name": "save_variation_custom_field_data",
-            "summary": "Save\u0020Smartum\u0020product\u0020type\u0020for\u0020variable\u0020products",
+            "summary": "Save\u0020Smartum\u0020Benefit\u0020Type\u0020for\u0020variable\u0020products",
             "url": "classes/WC-Smartum-Gateway-Admin.html#method_save_variation_custom_field_data"
         },                {
             "fqsen": "\\WC_Smartum_Gateway_Admin\u003A\u003A\u0024benefits",
@@ -281,6 +346,11 @@ Search.appendIndex(
             "summary": "checks\u0020whether\u0020the\u0020smartum\u0020gateway\u0020is\u0020enabled\u0020for\u0020the\u0020given\u0020cart",
             "url": "classes/WC-Smartum-Gateway.html#method_is_available"
         },                {
+            "fqsen": "\\WC_Smartum_Gateway\u003A\u003Acheck_for_valid_items\u0028\u0029",
+            "name": "check_for_valid_items",
+            "summary": "Checks\u0020whether\u0020given\u0020cart\/order\u0020item\u0020is\u0020valid\u0020for\u0020smartum\u0020checkout",
+            "url": "classes/WC-Smartum-Gateway.html#method_check_for_valid_items"
+        },                {
             "fqsen": "\\WC_Smartum_Gateway\u003A\u003Acheck_connection\u0028\u0029",
             "name": "check_connection",
             "summary": "Check\u0020smartum\u0020connection\u0020and\u0020if\u0020the\u0020venue\u0020id\u0020is\u0020valid\nSaves\u0020valid\u0020product\u0020types\u0020to\u0020be\u0020used\u0020in\u0020cart\u0020validation",
@@ -290,6 +360,11 @@ Search.appendIndex(
             "name": "notices",
             "summary": "Print\u0020admin\u0020notices\u0020if\u0020saving\u0020the\u0020venue\u0020fails",
             "url": "classes/WC-Smartum-Gateway.html#method_notices"
+        },                {
+            "fqsen": "\\WC_Smartum_Gateway\u003A\u003Ais_settings_page\u0028\u0029",
+            "name": "is_settings_page",
+            "summary": "Check\u0020if\u0020currently\u0020on\u0020smartum\u0020settings\u0020page",
+            "url": "classes/WC-Smartum-Gateway.html#method_is_settings_page"
         },                {
             "fqsen": "\\WC_Smartum_Gateway\u003A\u003A\u0024benefit",
             "name": "benefit",
@@ -301,15 +376,20 @@ Search.appendIndex(
             "summary": "Prevent\u0020showing\u0020admin\u0020notice\u0020about\u0020invalid\u0020venue\u0020twice",
             "url": "classes/WC-Smartum-Gateway.html#property_invalid_venue_notice_shown"
         },                {
-            "fqsen": "\\eeco_smartum_get_payment_gateway_settings\u0028\u0029",
-            "name": "eeco_smartum_get_payment_gateway_settings",
-            "summary": "get\u0020custom\u0020payment\u0020gateway\u0020settings\u0020with\u0020defaults",
-            "url": "namespaces/default.html#function_eeco_smartum_get_payment_gateway_settings"
-        },                {
             "fqsen": "\\WCG_SMARTUM_PATH",
             "name": "WCG_SMARTUM_PATH",
             "summary": "",
             "url": "namespaces/default.html#constant_WCG_SMARTUM_PATH"
+        },                {
+            "fqsen": "\\WCG_SMARTUM_VERSION",
+            "name": "WCG_SMARTUM_VERSION",
+            "summary": "",
+            "url": "namespaces/default.html#constant_WCG_SMARTUM_VERSION"
+        },                {
+            "fqsen": "\\WCG_SMARTUM_DEBUG_MODE",
+            "name": "WCG_SMARTUM_DEBUG_MODE",
+            "summary": "",
+            "url": "namespaces/default.html#constant_WCG_SMARTUM_DEBUG_MODE"
         },                {
             "fqsen": "\\WCG_SMARTUM_PRODUCTION",
             "name": "WCG_SMARTUM_PRODUCTION",

@@ -1,0 +1,30 @@
+<table style="width: 100%">
+    <thead>
+        <tr>
+            <th><?php echo _x('Product', 'Product table', 'eeco-wco') ?></th>
+            <th><?php echo _x('Price', 'Product table', 'eeco-wco') ?></th>
+            <th><?php echo _x('Quantity', 'Product table', 'eeco-wco') ?></th>
+            <th><?php echo _x('Total', 'Product table', 'eeco-wco') ?></th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php 
+            $total = 0;
+            foreach ($offer['items'] as $item): 
+                $total += $item['total'];    
+        ?>
+            <tr>
+                <td><?php echo $item['name'] ?></td>
+                <td><?php echo wc_price($item['total']/$item['quantity']) ?></td>
+                <td><?php echo $item['quantity'] ?></td>
+                <td><?php echo wc_price($item['total']) ?></td>
+            </tr>
+        <?php endforeach; ?>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td><?php echo "<b>" . __('Sum:', 'eeco-wco') . " " . wc_price($total) . "</b>";  ?></td>
+            </tr>
+    </tbody>
+</table>

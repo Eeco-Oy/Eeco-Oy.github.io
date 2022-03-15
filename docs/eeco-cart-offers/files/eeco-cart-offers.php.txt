@@ -1,0 +1,107 @@
+<?php
+
+/**
+* Plugin Name: Eeco Quote Requests
+* Plugin URI: https://www.eeco.fi/
+* Description: Give users the option to request a quote for the shopping cart
+* Version: 1.0.3
+* Author: Eeco
+* Author URI: https://www.eeco.fi/
+* Text Domain: eeco-wco
+* Domain Path: /languages
+**/
+
+defined( 'ABSPATH' ) || exit;
+
+//plugin version
+define('EECO_WCO_VERSION', '1.0.3');
+
+//root
+define('EECO_WCO_ROOT', plugin_dir_path( __FILE__ ));
+
+// plugin url
+define('EECO_WCO_URL', plugin_dir_url(__FILE__));
+
+//path for plugin
+define( 'EECO_WCO_PATH', untrailingslashit( plugin_dir_path( __FILE__ ) ) );
+
+//db versions
+define('EECO_WCO_DB_VERSION', '1.7');
+
+
+/**
+ * initialize plugin
+ */
+function init_eeco_wco() {
+    $plugin_rel_path = basename( dirname( __FILE__ ) ) . '/languages';
+    load_plugin_textdomain( 'eeco-wco', false, $plugin_rel_path );
+
+    include_once EECO_WCO_ROOT . 'includes/class-wco-main.php';
+
+    new Eeco_WCO_Main();
+
+    $offerArray = get_pending_offer_count();
+    if(is_array($offerArray)){
+        $count = count($offerArray);
+    }else {
+        $count = 0;
+    }
+
+    $args = array(
+        'show_in_menu' => true,
+        'menu_icon' => 'dashicons-cart',
+        'labels' => array(
+            'name' => __( 'Quote Requests', 'eeco-wco' ),
+            'singular_name' => __( 'Quote Request', 'eeco-wco' ),
+            'edit_item' => __('Edit Quote Request', 'eeco-wco'),
+            'search_items' => __('Search Quote Requests', 'eeco-wco'),
+            'menu_name' => _x( 'Quote Requests %%PendingOffers%%', 'WC Cart Offers menu name' ,'eeco-wco' ),
+            'all_items' => $count ? __('All Quote Requests', 'eeco-wco'). '<span class="awaiting-mod">' . $count . '</span>' : 'All Quote Requests',
+        ),
+        'description' => __( 'List of Quote Requests', 'eeco-wco' ),
+        'capabilities' => array(
+            'create_posts' => false
+        ),
+        'map_meta_cap' => true,
+        'public' => true,
+        'exclude_from_search' => true,
+        'publicly_queryable' => false,
+        'hierarchical' => false,
+        'has_archive' => false,
+        'supports' => array('title')
+    );
+
+    register_post_type('wco_offer', $args);
+
+    $settings = eeco_wco_default_settings();
+    $settings['eeco_wco_default_button_url']['default'] = get_permalink( wc_get_page_id( 'myaccount' ) );
+    
+    foreach ($settings as $name => $value) {
+        register_setting('eeco_wco_defaults', $name, $value);
+    }
+}
+
+add_action('init', 'init_eeco_wco');
+
+/**
+ * activate plugin
+ */
+function activate_eeco_wco() {
+    if ( current_user_can( 'activate_plugins' ) && !class_exists( 'WooCommerce' ) ) {
+
+        deactivate_plugins( plugin_basename( __FILE__ ) );
+
+        $error_message = __('This plugin depends on plugin WooCommerce. Please activate it first', 'eeco-wco');
+        
+        die( $error_message );
+    }
+}
+register_activation_hook( __FILE__, 'activate_eeco_wco' );
+
+/**
+ * deactivate plugin
+ */
+function deactivate_eeco_wco() {
+
+}
+register_deactivation_hook( __FILE__, 'deactivate_eeco_wco' );

@@ -1,0 +1,109 @@
+<?php 
+/**
+* Plugin Name: Smartum Payments for WooCommerce
+* Plugin URI: https://eeco.fi/tuote/woocommerce-smartum-checkout/
+* Description: Give your customers the ability to pay with Smartum benefits.
+* Version: 1.2.4
+* Author: Eeco
+* Author URI: https://www.eeco.fi/
+* Text Domain: wc-smartum-gateway
+* Domain Path: /languages/
+**/
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // exit if accessed directly
+}
+
+//path for plugin
+define( 'WCG_SMARTUM_PATH', untrailingslashit( plugin_dir_path( __FILE__ ) ) );
+
+//version
+define( 'WCG_SMARTUM_VERSION', '1.2.4');
+
+//disable developer mode
+if(!defined('WCG_SMARTUM_DEBUG_MODE')){
+    define( 'WCG_SMARTUM_DEBUG_MODE', FALSE );
+}
+
+//production public key for jwt verification
+define( 'WCG_SMARTUM_PRODUCTION', 
+'-----BEGIN PUBLIC KEY-----
+MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQA4c5s+DBP4novRcrtjuPwjb5jzcoUsStZrh1dMoKJyTz6+McVmBNlLsTNMGLLWCpGj7ubbBhSvyWQojJkSt8h8wwAffURUcre8DsKtO0XJbtAMBGs+NIQzZCFhyeIqA2LgW7b/ToNNbZgvQGpFRk2X3qhjEtGUGlUWHDobVU/nNKZa6U=
+-----END PUBLIC KEY-----');
+
+//staging key for jwt verification
+define( 'WCG_SMARTUM_STAGING', 
+'-----BEGIN PUBLIC KEY-----
+MIGbMBAGByqGSM49AgEGBSuBBAAjA4GGAAQAe8rGH96EqvqcIg+DQ/9q8bM+fH1k/31Pw1kCESxdOQ0jy+zIpgZ3SN3U9I7aBKugZe1cejygJBpFNvORPzaIzBEAaJ367fnNZG2chabdJEsUW5qcrffCQNlfcYXvMeZPbps3P3ofwY+Qd2+kpbIUi+Y48n+xe9pEVS5dkH+2lk1DUQc=
+-----END PUBLIC KEY-----');
+
+/**
+ * initializing the plugin and loading all the necessary files
+ */
+class Smartum_Gateway_For_Woocommerce {
+    function __construct(){
+        add_action('init', array($this, 'init'));
+        add_action('wp_footer', array($this, 'add_checkout_script') );
+    }
+
+    /**
+     * add script to checkout page for updating the form on payment method change
+     */
+    public function add_checkout_script(){
+        if ( is_checkout() && ! is_wc_endpoint_url() ) :
+            ?>
+            <script type="text/javascript">
+            jQuery( function($){
+                $('form.checkout').on('change', 'input[name="payment_method"]', function(){
+                    $(document.body).trigger('update_checkout');
+                });
+            });
+            </script>
+            <?php
+        endif;
+    }
+
+    /**
+     * initialize the plugin
+     */
+    public function init(){
+        if (class_exists( 'WC_Payment_Gateway' ) ) {
+            $plugin_rel_path = basename( dirname( __FILE__ ) ) . '/languages';
+			load_plugin_textdomain( 'wc-smartum-gateway', false, $plugin_rel_path );
+            
+            $this->include_files();
+        }
+    }
+
+    /**
+     * include all the required files
+     */
+    private function include_files(){
+        include_once WCG_SMARTUM_PATH . '/includes/functions.php';
+        include_once WCG_SMARTUM_PATH . '/includes/class-wc-smartum-gateway-api.php';
+        include_once WCG_SMARTUM_PATH . '/includes/class-wc-smartum-gateway-handler.php';
+        include_once WCG_SMARTUM_PATH . '/includes/class-wc-smartum-gateway.php';
+        include_once WCG_SMARTUM_PATH . '/includes/class-wc-smartum-gateway-admin.php';
+        include_once WCG_SMARTUM_PATH . '/includes/class-update-client.php';
+
+        if(is_admin()){
+            new WC_Smartum_Gateway_Admin();
+        }
+
+        add_filter( 'woocommerce_payment_gateways', array($this, 'add_gateway_class') );
+
+    }
+
+    /**
+     * let WC know which is the gateway class
+     * 
+     * @param array $methdods Array of payment gateway class names
+     */
+    public function add_gateway_class($classes) {
+        $classes[] = 'WC_Smartum_Gateway'; 
+        return $classes;
+    }
+    
+}
+
+new Smartum_Gateway_For_Woocommerce();

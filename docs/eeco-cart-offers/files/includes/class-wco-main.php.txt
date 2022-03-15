@@ -1,0 +1,142 @@
+<?php
+
+defined( 'ABSPATH' ) || exit;
+
+class Eeco_WCO_Main {
+
+    /**
+     * array of files to include
+     */
+    private $classes = [
+        'class-wco-admin.php',
+        'class-wco-db.php',
+        'wco-functions.php',
+        'class-wco-cart.php',
+        'class-wco-ajax.php',
+        'class-wco-account.php',
+        'class-update-client.php',
+        'class-wco-reports.php',
+        'class-wco-offer-table.php'
+    ];
+
+    
+    /**
+     * do initializing
+     */
+    public function __construct() {
+        add_action( 'wp_enqueue_scripts', array($this, 'add_assets'), 100 );
+        add_filter( 'option_wco_allowed_groups', array($this, 'options'), 10, 2 );
+        add_filter( 'option_wco_allowed_roles', array($this, 'options'), 10, 2 );
+        add_filter( 'option_wco_cart_conditions', array($this, 'options'), 10, 2 );
+        add_filter( 'option_wco_product_conditions', array($this, 'options'), 10, 2 );
+
+        $this->init();
+    }
+
+    /**
+     * init plugins
+     */
+    public function init(){
+        if(class_exists('WooCommerce')){
+            $this->include_files();
+            $this->run();
+        }
+    }
+
+    /**
+     * register settings page and its content
+     * @return void
+     */
+    public function run() {
+        $this->initialize_db();
+        if(is_admin()){
+            new Eeco_WCO_cart();
+            new Eeco_WCO_Account();
+            new Eeco_WCO_Admin();
+        } else {
+            new Eeco_WCO_cart();
+            new Eeco_WCO_Account();
+        }
+        eeco_wco_scheduled_event();
+    }
+    
+    /**
+     * initialize db by checking if table need updates
+     * 
+     * @return void
+     */
+    public function initialize_db(){
+        $offer = new Eeco_WCO_DB();
+        $offer->update_db();
+    }
+
+    /**
+     * include all required files
+     * @return void
+     */
+    public function include_files(){
+        foreach ($this->classes as $value) {
+            require_once EECO_WCO_ROOT . "includes/$value";
+        }
+    }
+
+    /**
+     * Add offer assets
+     */
+    function add_assets(){
+        wp_enqueue_script( 'eeco_wco_offer_script', EECO_WCO_URL .'assets/js/wco-offer.js', array(), EECO_WCO_VERSION );
+        wp_enqueue_style( 'eeco_wco_cart_offer_style', EECO_WCO_URL . 'assets/css/wco-offer.css', array(), EECO_WCO_VERSION );
+
+        $userID = get_current_user_id();
+        $offerArray = get_active_offer_count($userID);
+        $count = count($offerArray);
+
+        wp_localize_script( 'eeco_wco_offer_script', 'eeco_wco_offer_object',
+            array( 
+                'ajax_url' => admin_url( 'admin-ajax.php' ),
+                'woo_cart_url' => get_permalink(wc_get_page_id('cart')),
+                'nonce' => wp_create_nonce( 'account-nonce' ),
+                'pending_offer_count' => $count
+            ) 
+        );
+    }
+
+    /**
+     * Filter options and make sure they are in correct format
+     * 
+     * @param mixed $value The value to filter
+     * @param string $option Option name
+     * @return mixed The result
+     */
+    public function options( $value, $option ){
+        switch ($option) {
+            case 'wco_allowed_roles':
+            case 'wco_allowed_groups':
+                $value = is_array($value) ? $value : [];
+                break;
+            case 'wco_product_conditions': 
+                $value = is_array($value) ? $value : [];
+
+                foreach ($value as &$item) {
+                    if(!is_array($item) || count($item) < 2){
+                        $item = ['', '', []];
+                    }
+                    if(!isset($item[2])){
+                        $item[2] = [];
+                    }
+                }
+                break;
+            case 'wco_cart_conditions': 
+                $value = is_array($value) ? $value : [];
+
+                foreach ($value as &$item) {
+                    $item = is_array($item) && count($item) === 3 ? $item : ['','',0];
+                }
+                break;
+            default:
+                break;
+        }
+
+        return $value;
+    }
+}

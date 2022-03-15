@@ -1,0 +1,132 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // exit if accessed directly
+}
+
+/**
+ * class for handling the admin side of things
+ */
+
+class WC_Smartum_Gateway_Admin{
+
+    /**
+     * valid benefits
+     */
+    private $benefits = [];
+
+    /**
+     * bind actions
+     */
+    public function __construct(){
+        add_action( 'woocommerce_product_options_general_product_data', array($this, 'add_custom_fields') );
+        add_action( 'woocommerce_variation_options_pricing', array($this, 'add_variable_custom_fields'), 10, 3 );
+        add_action( 'woocommerce_process_product_meta', array($this, 'save_custom_field_data') );
+        add_action( 'woocommerce_save_product_variation', array($this, 'save_variation_custom_field_data'), 10, 2 );
+        add_action( 'admin_init', array($this, 'settings_init'));
+
+        $this->benefits = eeco_smartum_benefit_types();
+    }
+
+    /**
+     * register settings
+     */
+    public function settings_init(){
+        register_setting('smartum_gateway', 'smartum_licence', array(
+            'default' => '',
+            'type' => 'string'
+        ));
+
+        foreach (eeco_smartum_get_payment_gateway_settings() as $key => $value) {
+            register_setting('smartum_gateway__hidden', $key, $value);
+        }
+    }
+
+    /**
+     * adds custom field to product card
+     * handles setting the Smartum Benefit Type
+     */
+    public function add_custom_fields(){
+        echo '<div class="show_if_simple">';
+
+        $field_args = array(
+            'id' => 'wcsg_product_type',
+            'class' => 'show_if_simple',
+            'label' => __( 'Smartum Benefit Type', 'wc-smartum-gateway' ),
+            'desc_tip' => true,
+            'description' => __( 'The payment gateway will only be enabled for Smartum compliant products', 'wc-smartum-gateway' ),
+            'options' => array(
+                'none' => __('None','wc-smartum-gateway'),
+            )
+        );
+
+        foreach (get_option('eeco_smartum_valid_benefits') as $value) {
+            if(isset($this->benefits[$value])){
+                $field_args['options'][$value] = $this->benefits[$value];
+            }
+        }
+
+        woocommerce_wp_select( $field_args );
+
+        echo '</div>';
+    }
+
+    /**
+     * Add custom fields to product variations
+     * 
+     * @param int $loop Variation loop counter
+     * @param array $variation_data Variation data
+     * @param object $variation Variation
+     */
+    public function add_variable_custom_fields($loop, $variation_data, $variation) {
+        $field_args = array(
+            'id' => 'wcsg_variable_product_type[' . $loop . ']',
+            'class' => 'short',
+            'wrapper_class' => 'form-row',
+            'label' => __( 'Smartum Benefit Type', 'wc-smartum-gateway' ),
+            'value' => get_post_meta($variation->ID, 'wcsg_variable_product_type', true),
+            'desc_tip' => true,
+            'description' => __( 'The payment gateway will only be enabled for Smartum compliant products', 'wc-smartum-gateway' ),
+            'options' => array(
+                'none' => __('None','wc-smartum-gateway'),
+            )
+        );
+
+        foreach (get_option('eeco_smartum_valid_benefits') as $value) {
+            if(isset($this->benefits[$value])){
+                $field_args['options'][$value] = $this->benefits[$value];
+            }
+        }
+
+        woocommerce_wp_select( $field_args );
+    }
+
+    /**
+     * saves the Smartum Benefit Type selection
+     * 
+     * @param int $post_id Id of the post to save data for
+     */
+    public function save_custom_field_data($post_id){
+        if(isset($_POST['wcsg_product_type'])){
+            update_post_meta($post_id, 'wcsg_product_type', $_POST['wcsg_product_type']);
+        }
+        else{
+            delete_post_meta($post_id, 'wcsg_product_type');
+        }
+    }
+
+    /**
+     * Save Smartum Benefit Type for variable products
+     * 
+     * @param int $variation_id Variation ID
+     * @param int $i Variation counter
+     */
+    public function save_variation_custom_field_data($variation_id, $i) {
+        $smartum_product_type = $_POST['wcsg_variable_product_type'][$i];
+        if (isset($smartum_product_type)) {
+            update_post_meta($variation_id, 'wcsg_variable_product_type', esc_attr($smartum_product_type));
+        } else {
+            delete_post_meta($variation_id, 'wcsg_variable_product_type');
+        }
+    }
+}

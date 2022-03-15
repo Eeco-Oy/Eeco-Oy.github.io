@@ -1,0 +1,133 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+    die();
+}
+
+//handle account page stuff
+class Eeco_WCO_Account {
+    /**
+     * my account url
+     */
+    private $base_url = null;
+
+    function __construct(){
+        $this->eeco_wco_my_account_endpoints();
+        $this->eeco_wco_flush_rewrite_rules();
+        $this->base_url = get_permalink( wc_get_page_id( 'myaccount' ) );
+        add_action( 'query_vars', array($this, 'eeco_wco_query_vars') );
+
+        //menu item content
+        add_filter( 'woocommerce_account_menu_items', array($this, 'eeco_wco_my_account_menu_items') );
+        add_action( 'woocommerce_account_'.sanitize_title(__('wco-cart-offers', 'eeco-wco')).'_endpoint', array($this, 'eeco_wco_offers_template') );
+        //assets
+        add_action( 'wp_enqueue_scripts', array($this, 'add_account_assets'), 100 );
+    }
+
+    
+
+    /*
+     *  Register endpoints for My account
+    */
+    public function eeco_wco_my_account_endpoints() {
+        add_rewrite_endpoint(sanitize_title(__('wco-cart-offers', 'eeco-wco')), EP_ROOT | EP_PAGES);
+    }
+
+    /**
+     * Add new query vars
+     * 
+     * @param array $vars query vars
+     * @return array Query vars
+     */
+    public function eeco_wco_query_vars($vars) {
+        $vars[] = sanitize_title(__('wco-cart-offers', 'eeco-wco'));
+        return $vars;
+    }
+
+    /*
+     *  Flush rewrite rules on plugi activation
+    */
+    public function eeco_wco_flush_rewrite_rules() {
+        flush_rewrite_rules();
+    }
+
+    /**
+     * Edit my account menu items
+     * 
+     * @param array $items menu items
+     * @return array $items edited menu items
+     */
+    public function eeco_wco_my_account_menu_items($items) {
+            $logout = $items['customer-logout'];
+            unset($items['customer-logout']);
+            $items['wco-cart-offers'] = __('Cart offers', 'eeco-wco');
+            $items['customer-logout'] = $logout;
+
+        return $items;
+    }
+
+     /**
+     * Get order listing templates for my account page
+     * 
+     * @return void
+     */
+    public function eeco_wco_offers_template(){
+        if($active = wco_get_offers(get_current_user_id(), 'active')){
+            eeco_wco_get_template('myaccount/cart-offers.php', array(
+                'offers' => $active
+            ));
+        }
+        if($pending = wco_get_offers(get_current_user_id(), 'pending')){
+            eeco_wco_get_template('myaccount/cart-offers.php', array(
+                'offers' => $pending
+            ));
+        }
+        if($expired = wco_get_offers(get_current_user_id(), 'expired')){
+            eeco_wco_get_template('myaccount/cart-offers.php', array(
+                'offers' => $expired
+            ));
+        }
+        if($canceled = wco_get_offers(get_current_user_id(), array('canceled', 'customer_declined'))){
+            eeco_wco_get_template('myaccount/cart-offers.php', array(
+                'offers' => $canceled
+            ));
+        }
+        if (!wco_get_offers(get_current_user_id(), array('active', 'pending', 'expired', 'canceled', 'customer_declined'))) {
+            ?>
+            <div class="woocommerce-Message woocommerce-Message--info woocommerce-info woocommerce-Message--quote-requests">
+                <span><?php esc_html_e( 'No quote request found.', 'eeco-wco' ); ?></span>
+                <a class="woocommerce-Button button" href="<?php echo esc_url( apply_filters( 'woocommerce_return_to_shop_redirect', wc_get_page_permalink( 'shop' ) ) ); ?>">
+                    <?php esc_html_e( 'Browse products', 'eeco-wco' ); ?>
+                </a>
+            </div>
+            <?php    
+        }
+    }
+
+     /**
+     * add assets for account page
+     */
+    public function add_account_assets(){
+        if(is_account_page()){
+            wp_enqueue_script( 'eeco_wco_cart_script', plugin_dir_url( __DIR__ ).'assets/js/account.js', array(), EECO_WCO_VERSION );
+            wp_enqueue_style( 'eeco_wco_cart_account_style', plugin_dir_url( __DIR__ ).'assets/css/account.css', array(), EECO_WCO_VERSION );
+
+            $userID = get_current_user_id();
+            $offerArray = get_active_offer_count($userID);
+            $count = count($offerArray);
+
+            wp_localize_script( 'eeco_wco_cart_script', 'eeco_wco_account_object',
+                array( 
+                    'ajax_url' => admin_url( 'admin-ajax.php' ),
+                    'woo_cart_url' => get_permalink(wc_get_page_id('cart')),
+                    'nonce' => wp_create_nonce( 'account-nonce' ),
+                    'pending_offer_count' => $count
+                ) 
+            );
+        }else{
+            wp_enqueue_style( 'eeco_wco_single_product_style', plugin_dir_url( __DIR__ ).'assets/css/single-product.css', array(), EECO_WCO_VERSION );
+
+        }
+    }
+
+}

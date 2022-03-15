@@ -1,0 +1,255 @@
+<?php
+
+defined( 'ABSPATH' ) || exit;
+
+ class Eeco_WCO_Admin {
+	/**
+     * do initializing
+     */
+    public function __construct() {
+        add_action( 'admin_enqueue_scripts', array($this, 'enqueue_assets') );
+        add_action( 'add_meta_boxes', array($this, 'create_meta_boxes'));
+        add_action( 'admin_menu', array($this, 'add_offer_submenu_page'));
+        add_filter( 'attribute_escape', array($this, 'pending_count'), 20, 2);
+        add_action( 'admin_print_footer_scripts', array($this, 'eeco_wco_pointer_script') );
+        add_action( 'do_meta_boxes', array($this, 'remove_publish_metabox') );
+    }
+
+    /**
+     * Add pending count after the cart offers menu item
+     * 
+     * @param string $safe_text Fully formatted text
+     */
+    public function pending_count( $safe_text = '', $text = '' ) {
+        if ( substr_count($text, '%%PendingOffers%%') ) {
+            // this is the menu name we want to modify
+            $text = trim( str_replace('%%PendingOffers%%', '', $text) );
+
+            // once the string found, no need to use the filter
+            remove_filter('attribute_escape', 'display_count_wco_pending_offer_approval', 20, 2);
+
+            $safe_text = esc_attr($text);
+            $offerArray = get_pending_offer_count();
+            $count = count($offerArray);
+
+            if ( $count > 0 ) {
+                // if there are posts pending approval
+                $text = esc_attr($text) . '<span class="awaiting-mod">' . $count . '</span>';
+                return $text;
+            }
+        }
+        return $safe_text;
+    }
+
+    /**
+     * add a new menu page for the custom post type
+     * @return void
+     */
+    public function add_offer_submenu_page(){
+        add_submenu_page(
+            'edit.php?post_type=wco_offer',
+            __('WC Quote Requests Settings', 'eeco-wco'),
+            __('WC Quote Requests Settings', 'eeco-wco'), 
+            'manage_options', 
+            'eeco-wco-settings-offers',
+            array($this, 'cart_offer_settings')
+        );
+        add_submenu_page( 
+            'edit.php?post_type=wco_offer',
+            __('Reports', 'eeco-wco'), 
+            __('Reports', 'eeco-wco'), 
+            'manage_options', 
+            'eeco-wco-reports',
+            array($this, 'reports_html') 
+        );
+    }
+    /**
+     * Add cart offer settings page
+     */
+    public function cart_offer_settings(){
+        global $wp_roles;
+
+        eeco_wco_get_template('admin/settings.php', array(
+            'groups' => function_exists('bgh_wg_get_groups') ? bgh_wg_get_groups() : null,
+            'groups_active' => function_exists('bgh_wg_get_groups'),
+            'roles' => $wp_roles->get_names()
+        ));
+    }
+
+    /**
+     * Add reports parge
+     */
+    public function reports_html() {
+        $args = array(
+            'reports' => Eeco_Cart_Offers_Reports::get_reports()
+        );
+        eeco_wco_get_template('admin/reports.php', $args);
+    }
+    /**
+     * create a new meta box to be used on the offer page
+     * @return void
+     */
+    public function create_meta_boxes(){
+        add_meta_box('wco_counter_offer', __('Quote', 'eeco-wco'), array($this, 'wco_admin_counter_offer'), 'wco_offer', 'normal','default');
+    }
+
+    /**
+     * add counter offer metabox content
+     */
+    function wco_admin_counter_offer() {
+        global $post;
+   
+        eeco_wco_get_template('admin/admin-counter-offer.php', [
+            'post' => $post,
+            'offer' => wco_get_offer($post->ID),
+            'products' => wco_get_products($post->ID),
+            'userID' => get_post_meta($post->ID, 'eeco_wco_user_id', true),
+            'phone' => get_post_meta($post->ID, 'eeco_wco_phone', true)
+        ]);
+    }
+
+	/**
+     * include assets for the campaign page
+     * @return void
+     */
+    public function enqueue_assets(){
+
+        $screen = get_current_screen();
+        if(get_post_type() === 'wco_offer' || $screen->post_type == 'wco_offer'){
+            wp_enqueue_style( 'wco_admin_style', plugin_dir_url( __DIR__ ).'assets/css/admin.css', [], EECO_WCO_VERSION );
+            wp_register_style( 'jquery-ui', 'https://code.jquery.com/ui/1.12.1/themes/smoothness/jquery-ui.css' );
+            wp_enqueue_script( 'wco_admin_script', plugin_dir_url( __DIR__ ).'assets/js/wco-admin.js', [], EECO_WCO_VERSION );
+            wp_localize_script( 'wco_admin_script', 'eeco_wco_admin_object',
+                array( 
+                    'nonce' => wp_create_nonce( 'admin-nonce' )
+                ) 
+            );
+
+            wp_enqueue_style( 'jquery-ui' );
+            wp_enqueue_script('jquery-ui-datepicker');
+            wp_enqueue_style( 'font-awesome', '//use.fontawesome.com/releases/v5.3.1/css/all.css', array(), '5.3.1' );
+        }
+        if(isset($_GET['page']) && $_GET['page'] == 'eeco-wco-reports') {
+            wp_enqueue_style('gift-card-help', plugins_url('/assets/css/reports.css' , __DIR__ ), false, EECO_WCO_VERSION);
+            wp_enqueue_script('wp-pointer');
+            wp_enqueue_script('jquery-ui-datepicker');
+            wp_enqueue_style('jquery-ui-css', 'http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.2/themes/smoothness/jquery-ui.css');
+        }
+        if(isset($_GET['page']) && $_GET['page'] == 'eeco-wco-settings-offers') {
+            wp_enqueue_script('wp-pointer');
+        }
+    }
+
+    /**
+     * Add pointer function and script
+     */
+    public function eeco_wco_pointer_script() {
+        if(isset($_GET['page']) && $_GET['page'] == 'eeco-wco-reports') {
+            $first = sprintf('<h3>%s</h3><p>%s</p>',_x('Quote requests', 'Admin tooltip', 'eeco-wco'), _x('Data from quote requests made in chosen time period.', 'Admin tooltip', 'eeco-wco'));
+            $second = sprintf('<h3>%s</h3><p>%s</p>', _x('Total', 'Admin tooltip', 'eeco-wco'), _x('The original value of the shopping cart.', 'Admin tooltip', 'eeco-wco'));
+            $third = sprintf('<h3>%s</h3><p>%s</p>', _x('Quote requests open', 'Admin tooltip', 'eeco-wco'), _x('Quote requests made in chosen time period which are waiting Shop Manager actions.', 'Admin tooltip', 'eeco-who'));
+            $fourth = sprintf('<h3>%s</h3><p>%s</p>', _x('Quotes submitted', 'Admin tooltip', 'eeco-wco'), _x('Value of submitted quotes.', 'Admin tooltip', 'eeco-wco'));
+            $fifth = sprintf('<h3>%s</h3><p>%s</p>', _x('Sales received from quotes', 'Admin toolip', 'eeco-wco'), _x('All converted quotes from the quote requests made in chosen time period.', 'Admin toolip', 'eeco-wco'));
+            $sixth = sprintf('<h3>%s</h3><p>%s</p>', _x('Rejected quotes', 'Admin toolip', 'eeco-wco'), _x('All quotes declined by customer from the quote requests made in chosen time period.', 'Admin toolip', 'eeco-wco'));
+            $seventh = sprintf('<h3>%s</h3><p>%s</p>', _x('Quotes open', 'Admin toolip', 'eeco-wco'), _x('All quotes made by Shop Manager in chosen time period which are waiting customer actions.', 'Admin toolip', 'eeco-wco'));
+            $eighth = sprintf('<h3>%s</h3><p>%s</p>', _x('Expired quotes', 'Admin toolip', 'eeco-wco'), _x('All expired quotes made in chosen time period.', 'Admin toolip', 'eeco-wco'));
+            $ninth = sprintf('<h3>%s</h3><p>%s</p>', _x('Results for quotes', 'Admin tooltip', 'eeco-wco'), _x('Status of quotes made in chosen time period (no matter when the quotes request or the quote has been made).', 'Admin tooltip', 'eeco-wco'));
+            $tenth = sprintf('<h3>%s</h3><p>%s</p>', _x('Sales received', 'Admin tooltip', 'eeco-wco'), _x('All converted quotes in chosen time period (no matter when the quote request or the quote has been made).', 'Admin tooltip', 'eeco-wco'));
+            $eleven = sprintf('<h3>%s</h3><p>%s</p>', _x('Rejected quotes', 'Admin tooltip', 'eeco-wco'), _x('All declined quotes by customer in chosen time period (no matter when the quote request or the quote has been made).', 'Admin tooltip', 'eeco-wco'));
+            $twelve = sprintf('<h3>%s</h3><p>%s</p>', _x('Expired quotes', 'Admin tooltip', 'eeco-wco'), _x('All expired quotes in chosen time period (no matter when the quote request or the quote has been made).', 'Admin tooltip', 'eeco-wco'));
+            $thirteen = sprintf('<h3>%s</h3><p>%s</p>', _x('Others', 'Admin tooltip', 'eeco-wco'), _x('Data from quote requests made in chosen time period (no matter when the quote request or the quote has been made).', 'Admin tooltip', 'eeco-wco')); ?>
+            <script type="text/javascript">
+            //<![CDATA[
+            jQuery(document).ready(function($) {
+                $(document).on('click', '.dashicons', function() {
+                    switch ($(this).data('pointer')) {
+                        case 1:
+                            text = '<?php echo $first; ?>';
+                            break;
+                        case 2:
+                            text = '<?php echo $second; ?>';
+                            break;
+                        case 3:
+                            text = '<?php echo $third; ?>';
+                            break;
+                        case 4:
+                            text = '<?php echo $fourth; ?>';
+                            break;
+                        case 5:
+                            text = '<?php echo $fifth; ?>';
+                            break;
+                        case 6:
+                            text = '<?php echo $sixth; ?>';
+                            break;
+                        case 7:
+                            text = '<?php echo $seventh; ?>';
+                            break;
+                        case 8:
+                            text = '<?php echo $eighth; ?>';
+                            break;
+                        case 9:
+                            text = '<?php echo $ninth; ?>';
+                            break;
+                        case 10:
+                            text = '<?php echo $tenth; ?>';
+                            break;
+                        case 11: 
+                            text = '<?php echo $eleven; ?>';
+                            break;
+                        case 12:
+                            text = '<?php echo $twelve; ?>';
+                            break;
+                        case 13:
+                            text = '<?php echo $thirteen; ?>';
+                            break;
+                    }
+                    $(this).pointer({
+                        content: text,
+                        position: 'top'
+                    }).pointer('open');
+                })
+            });
+            //]]>
+            </script>
+            <script type="text/javascript">
+                jQuery(document).ready(function($) {
+                    $('.date').datepicker({
+                        dateFormat : 'yy-mm-dd'
+                    });
+                });
+            </script>
+            <?php
+        }
+        if(isset($_GET['page']) && $_GET['page'] == 'eeco-wco-settings-offers') {
+            $content = sprintf('<h3>%s</h3>', _x('Product conditions','description text for conditions','eeco-wco'));
+            $content .= sprintf('<p>%s<br>%s</p>', _x('Every item in cart must match conditions set below.', 'Admin tooltip', 'eeco-wco'), _x('For example if you want to enable a quote request for only products in category "Cars", then you add a condition where "Product categories" includes "Cars"', 'Admin tooltip', 'eeco-wco'));
+            ?>
+            <script type="text/javascript">
+            //<![CDATA[
+            jQuery(document).ready(function($) {
+                $(document).on('click', 'label[for="wco_product_conditions_rule"]', function() {
+                    $(this).pointer({
+                        content: '<?php echo $content; ?>',
+                        position: 'top'
+                    }).pointer('open');
+                })
+            });
+            //]]>
+            </script>
+            <?php
+        }
+    }
+    /**
+     * Remove publish metabox from wco_offer post types
+     */
+    public function remove_publish_metabox() {
+        $post_types = get_post_types( '', 'names' );
+        if( !empty( $post_types ) ) {
+            foreach( $post_types as $type ) {
+                if ($type === 'wco_offer') {
+                    remove_meta_box( 'submitdiv', $type, 'side' ); 
+                }
+            }
+        }
+    }
+}

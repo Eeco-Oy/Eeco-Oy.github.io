@@ -1,0 +1,102 @@
+<?php 
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit; // exit if accessed directly
+}
+
+$valid_benefit_types = array('none' => __('None', 'wc-smartum-gateway'));
+$benefit_types = eeco_smartum_benefit_types();
+
+foreach (get_option('eeco_smartum_valid_benefits') as $value) {
+    $valid_benefit_types[$value] = $benefit_types[$value];
+}
+
+/**
+ * the settings array with defaults
+ * used to initialize the settings for admin and frontend
+ */
+return array(
+    'enabled' => array(
+        'title' => _x( 'Activate Smartum Checkout', 'The title', 'wc-smartum-gateway' ),
+        'type' => 'checkbox',
+        'label' =>  _x( 'Activate Smartum Checkout', 'The description', 'wc-smartum-gateway' ),
+        'description' => __( 'You have to decide which products can be purchased on the product level', 'wc-smartum-gateway' ),
+        'default' => 'no'
+    ),
+    'title' => array(
+        'title' => __( 'Title', 'wc-smartum-gateway' ),
+        'type' => 'text',
+        'description' => __( 'Users will see this title during checkout and emails. eCommerce admins see this in Orders and Reports.', 'wc-smartum-gateway' ),
+        'default' => __( 'Smartum Payment', 'wc-smartum-gateway' ),
+    ),
+    'description' => array(
+        'title' => __( 'Description', 'wc-smartum-gateway' ),
+        'type' => 'textarea',
+        'description' => __( 'Add additional information about this payment method. Users will see this description during checkout', 'wc-smartum-gateway' ),
+        'default' => ''
+    ),
+    'smartum_icon' => array(
+        'title' => __('Smartum Logo', 'wc-smartum-gateway'),
+        'type' => 'select',
+        'description' => __('Choose the style of the Smartum logo. Users will see this during the checkout.', 'wc-smartum-gateway'),
+        'default' => 'color',
+        'options' => array(
+            'color' => __('Smartum Brand Color', 'wc-smartum-gateway'),
+            'black' => __('Black', 'wc-smartum-gateway'),
+            'white' => __('White', 'wc-smartum-gateway'),
+            'no_logo' => __('Do not show logo', 'wc-smartum-gateway'),
+        )
+    ),
+    'venue_id' => array(
+        'title' => __('Venue ID', 'wc-smartum-gateway'),
+        'type' => 'text',
+        'description' => __('You will get the Venue ID from Smartum', 'wc-smartum-gateway'),
+        'default' => ''
+    ),
+    'fee' => array(
+        'title' => __('Payment Gateway Fee', 'wc-smartum-gateway'),
+        'type' => 'number',
+        'description' => __('<strong>Note!</strong> Make sure that enabling payment fees is legal for this gateway. If you are not sure leave this as is.', 'wc-smartum-gateway').'<br><br>'.__('Fee collected from customer for using Smartum payment gateway', 'wc-smartum-gateway'),
+        'default' => 0
+    ),
+    'fee_type' => array(
+        'title' => __('Type of Payment Gateway Fee', 'wc-smartum-gateway'),
+        'type' => 'select',
+        'description' => __('Is the Payment Gateway fee fixed or a percentage fee', 'wc-smartum-gateway'),
+        'default' => 'fixed',
+        'options' => array(
+            'fixed' => __('Fixed free', 'wc-smartum-gateway'),
+            'percentage' => __('Percentage fee', 'wc-smartum-gateway')
+        )
+    ),
+    'environment' => array(
+        'title' => __('Payment Gateway Mode', 'wc-smartum-gateway'),
+        'type' => 'select',
+        'description' => __('Is this gateway being used in staging or production environment','wc-smartum-gateway'),
+        'default' => 'staging',
+        'options' => array(
+            'staging' => __('Staging', 'wc-smartum-gateway'),
+            'production' => __('Production', 'wc-smartum-gateway')
+        )
+    ),
+    'use_globally' => array(
+        'title' => __('Use same benefit type globally', 'wc-smartum-gateway'),
+        'type' => 'checkbox',
+        'label' => __('Use same benefit type globally', 'wc-smartum-gateway'),
+        'description' => __('Set Smartum as a global Payment Method in your WooCommerce Store without any product level settings.','wc-smartum-gateway'),
+        'default' => 'no'
+    ),
+    'global_benefit_type' => array(
+        'title' => __('Choose global benefit type', 'wc-smartum-gateway'),
+        'type' => 'select',
+        'description' => __('Choose the benefit type to be used globally','wc-smartum-gateway').'<br><br>'.__('<strong>Note!</strong> If there are no benefit types available save the settings and then try again', 'wc-smartum-gateway'),
+        'default' => 'exercise',
+        'options' => $valid_benefit_types
+    ),
+    'smartum_licence' => array(
+        'title' => __('Licence key', 'wc-smartum-gateway'),
+        'type' => 'text',
+        'description' => __('Licence key to enable automatic updates', 'wc-smartum-gateway'),
+        'default' => get_option('smartum_licence')
+    ),
+);

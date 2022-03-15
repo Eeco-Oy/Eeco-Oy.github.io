@@ -12,6 +12,13 @@ function eeco_gift_cards_attachments($order_id){
         if(!empty($gift_cards)){
             foreach ($gift_cards as $value) {
                 $gift_card = new Eeco_Gift_Card($value);
+
+                if($gift_card->is_online()){
+                    do_action('eeco_online_gift_card_admin', $order, $gift_card);
+                }
+                else{
+                    do_action('eeco_offline_gift_card_admin', $order, $gift_card);
+                }
     
                 if($time = $gift_card->get_delivery_date()){
 
@@ -44,9 +51,13 @@ add_action('woocommerce_order_status_pending_to_processing_notification', 'eeco_
 function eeco_gift_cards_register_emails($emails){
     require_once EECO_GIFT_CARDS_ROOT.'includes/emails/class-online-gift-card-customer.php';
     require_once EECO_GIFT_CARDS_ROOT.'includes/emails/class-offline-gift-card-customer.php';
+    require_once EECO_GIFT_CARDS_ROOT.'includes/emails/class-offline-gift-card-admin.php';
+    require_once EECO_GIFT_CARDS_ROOT.'includes/emails/class-online-gift-card-admin.php';
     
     $emails['Eeco_Online_Gift_Card_Customer'] = new Eeco_Online_Gift_Card_Customer();
     $emails['Eeco_Offline_Gift_Card_Customer'] = new Eeco_Offline_Gift_Card_Customer();
+    $emails['Eeco_Offline_Gift_Card_Admin'] = new Eeco_Offline_Gift_Card_Admin();
+    $emails['Eeco_Online_Gift_Card_Admin'] = new Eeco_Online_Gift_Card_Admin();
 
     return $emails;
 }
@@ -170,6 +181,8 @@ add_action('eeco_gift_cards_deliver_gift_card', 'eeco_gift_cards_deliver_gift_ca
 function eeco_gift_cards_email_actions( $actions ){
     $actions[] = 'eeco_online_gift_card_customer';
     $actions[] = 'eeco_offline_gift_card_customer';
+    $actions[] = 'eeco_offline_gift_card_admin';
+    $actions[] = 'eeco_online_gift_card_admin';
     return $actions;
 }
 

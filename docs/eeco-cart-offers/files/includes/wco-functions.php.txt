@@ -1,0 +1,697 @@
+<?php 
+
+/**
+ * the default settings used on the settings page
+ * 
+ * @param bool $keys Whether to only return setting keys
+ * @return array Default settings of WCO
+ */
+function eeco_wco_default_settings($keys = false){
+    $default_settings = array(
+		'wco_cart_conditions' => array(
+			'default' => array()
+		),
+        'wco_cart_conditions_rule' => array(
+            'default' => 'or'
+        ),
+		'wco_cart_offer_email' => array(
+			'default' => ''
+		),
+        'wco_cart_offer_license_key' => array(
+            'default' => ''
+        ),
+        'wco_product_conditions' => array(
+            'default' => array()
+        ),
+        'wco_product_conditions_rule' => array(
+            'default' => 'or'
+        ),
+        'wco_offer_expiring_email_buffer' => array(
+            'default' => 1
+        ),        
+        'wco_allowed_groups' => array(
+            'default' => array()
+        ),
+        'wco_allowed_roles' => array(
+            'default' => array()
+        ),
+        'wco_cta_position' => array(
+            'default' => 'woocommerce_after_cart_totals'
+        ),
+    );
+
+    if($keys){
+        return array_keys($default_settings);
+    }
+
+    return $default_settings;
+}
+
+/**
+ * returns the given template contents
+ * @param string $template The template name
+ * @param array array of arguments
+ */
+function eeco_wco_get_template($template, $args = array()){
+    if(!empty($args)){
+        extract( $args, EXTR_SKIP );
+    }
+
+    if(file_exists(get_stylesheet_directory() . "/eeco-cart-offers/" . $template)){
+        include(get_stylesheet_directory() . "/eeco-cart-offers/" . $template);
+    }
+    else if(file_exists(get_template_directory() . "/eeco-cart-offers/" . $template)){
+        include(get_template_directory() . "/eeco-cart-offers/" . $template);
+    }
+    else{
+        include(plugin_dir_path( __DIR__ )."templates/" . $template);
+    }
+}
+
+/**
+ * returns if user logged in
+ * @return bool true if user logged in, false if not
+ */
+function eeco_wco_is_user_logged_in() {
+    $user = wp_get_current_user();
+ 
+    return $user->exists();
+}
+
+/**
+ * create offer to database
+ * @param int $post_id id of a post
+ * @param int $user_id id of a user
+ * @param string $type of an offer
+ * @param string $taxes coupon taxes to taxable or tax free price
+ * @param float $value float of offer value
+ * @param string $status status of an offer
+ * @param string $expiry_date expiry date of an offer
+ * @return int $result id of offer created
+ */
+function wco_create_offer($post_id, $user_id, $type, $taxes, $value, $status, $expiry_date) {
+    $instance = new Eeco_WCO_DB();
+
+    $result = $instance ->create_offer($post_id, $user_id, $type, $taxes, $value, $status, $expiry_date);
+
+    return $result;
+}
+
+/**
+ * returns all user offers
+ * @param int $user_id id of user
+ * @param string|array $status Offer status or statuses
+ * @return array of offers for user
+ */
+function wco_get_offers($user_id = null, $status = 'all'){
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+
+    $query = "SELECT * FROM $table_name";
+
+    $args = array();
+
+    if($user_id){
+        $query .= " WHERE user_id = %d";
+        $args[] = $user_id;
+    }
+
+    if($status !== 'all'){
+        if(is_array($status)){
+            $array_placeholders = implode( ', ', array_fill( 0, count( $status ), '%s' ) );
+            $query .= ($user_id ? " AND " : " WHERE ") . "offer_status IN ($array_placeholders)";
+
+            $args = array_merge($args, $status);
+        }
+        else{
+            $query .= ($user_id ? " AND " : " WHERE ") . "offer_status = %s";
+
+            $args[] = $status;
+        }
+    }
+
+    $query .= " ORDER BY coupon_date DESC";
+
+    $result = $wpdb->get_results(
+        $wpdb->prepare($query, $args)        
+    );
+    
+    return $result;
+}
+
+/**
+ * returns an offer
+ * @param int $post_id of offer id
+ * @return object offer
+ */
+function wco_get_offer($post_id){
+
+    $instance = new Eeco_WCO_DB();
+
+    $result = $instance->get_offer($post_id);
+
+    return $result;
+}
+
+/**
+ * edit an offer in database
+ * @param int $post_id id of a post
+ * @param string $type of an offer
+ * @param string $taxes coupon taxes to taxable or tax free price
+ * @param float $value float of offer value
+ * @param string $status status of an offer
+ * @param string $expiry_date expiry date of an offer
+ * @return bool true || false if offer updated
+ */
+function wco_edit_offer($post_id, $type, $taxes, $value, $status, $expiry_date) {
+    global $wpdb;
+    if(! $expiry_date){
+        $expiry_date = date('Y-m-d');
+    }
+
+    $offer_given = date('Y-m-d');
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+    $objects = [
+        $type,
+        $taxes,
+        $value,
+        $status,
+        $expiry_date,
+        $offer_given,
+        $post_id
+    ];
+
+    $sql = $wpdb->query($wpdb->prepare("UPDATE $table_name SET offer_type = %s, offer_taxes = %s, offer_value = %s, offer_status = %s, expiry_date = %s, offer_given = %s WHERE post_id = %d", $objects));
+
+    return $sql;
+}
+
+/**
+ * Add products
+ * @param int $post_id of an offer
+ * @param int $product_id of product to add
+ * @param int $quantity quantity of product to add 
+ * @param float $total line total of cart item
+ * @param float $tax tax total of cart item
+ * @return int true|false if successfully added 
+ */
+function wco_add_product($post_id, $product_id, $quantity, $total, $tax) {
+    $instance = new Eeco_WCO_DB();
+
+    $result = $instance->add_product($post_id, $product_id, $quantity, $total, $tax);
+    return $result;
+}
+
+/**
+ * Get offer products by post id
+ * @param int $post_id if of an offer
+ * @return array products for an offer
+ */
+function wco_get_products($post_id) {
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_products';
+
+    $result = $wpdb->get_results(
+        $wpdb->prepare("SELECT * FROM $table_name WHERE post_id = %d", $post_id)  
+    );
+    return $result;
+}
+
+/**
+ * Get all offer products
+ * @param $offerID id of an offer
+ * @return array all products for an offer
+ */
+function wco_get_offer_products($offerID){
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_products';
+
+    $result = $wpdb->get_results(
+        $wpdb->prepare("SELECT * FROM $table_name WHERE post_id = %d", $offerID)
+    );
+    return $result;
+}
+/**
+ * Add coupon to offer
+ * @param int $post_id id of an offer
+ * @param string $coupon_name name of a coupon
+ * @return bool true || false if coupon added to offer successfully
+ */
+function wco_coupon_to_offer($post_id, $coupon_name){
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+    $objects = [
+        $coupon_name,
+        $post_id
+    ];
+    $sql = $wpdb->query($wpdb->prepare("UPDATE $table_name SET offer_coupon = %s WHERE post_id = %d", $objects));
+    return $sql;
+}
+
+/**
+ * Get all products for a coupon
+ * @param int $coupon id of a coupon
+ * @return array products for a coupon
+ */
+function wco_get_coupon_products($coupon){
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+    $product_table_name = $wpdb->prefix . 'eeco_wco_products';
+
+    $result = $wpdb->get_results(
+        $wpdb->prepare("SELECT * FROM $table_name WHERE offer_coupon = %s", $coupon)
+    );
+
+    $id = $result[0]->post_id;
+
+    if($id){
+        $data = $wpdb->get_results(
+            $wpdb->prepare("SELECT * FROM $product_table_name WHERE post_id = %s", $id)
+        );
+    }else{
+        $data = false;
+    }
+
+    return $data;
+}
+
+/**
+ * Set used coupon inactive after checkout
+ * @param int $coupon id of a coupon
+ * @param int $order_id id of a order where coupon is used
+ * @return bool true || false if updated
+ */
+function wco_set_coupon_inactive($coupon, $order_id){
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+
+    $sql = $wpdb->query($wpdb->prepare("UPDATE $table_name SET offer_status = 'inactive', order_id = %d WHERE offer_coupon = %s", $order_id, $coupon));
+    return $sql;
+}
+
+/**
+ * Get offer by coupon code
+ * @param int $coupon id of a coupon
+ * @return object offer 
+ */
+function wco_get_offer_by_coupon($coupon){
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+
+    $data = $wpdb->get_row(
+        $wpdb->prepare("SELECT * FROM $table_name WHERE offer_coupon = %s", $coupon)
+    );
+
+    return $data;
+}
+
+/**
+ * Update offer coupon
+ * @param int $post_id id of an offer
+ * @param int $coupon id of a coupon
+ * @return bool true || false if updated rows
+ */
+function wco_update_offer_coupon($post_id, $coupon){
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+
+    $sql = $wpdb->query($wpdb->prepare("UPDATE $table_name SET offer_coupon = %s WHERE post_id = %d", $coupon, $post_id));
+    return $sql;
+}
+
+/**
+ * Set offer as top manager declined
+ * @param int $post_id id of an offer
+ * @return bool true || false if offer updated
+ */
+function wco_decline_offer($post_id) {
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+
+    $sql = $wpdb->query($wpdb->prepare("UPDATE $table_name SET offer_status = 'admin_declined' WHERE post_id = %d", $post_id));
+    return $sql;
+}
+
+/**
+ * Get all pending offers
+ * @return array all pending offers
+ */
+function get_pending_offer_count() {
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+
+    $data = $wpdb->get_results(
+        "SELECT * FROM $table_name WHERE offer_status = 'pending'"
+    );
+
+    return $data;
+}
+
+/**
+ * Get all active offers
+ * @param int $userID id of user
+ * @return array all active offers
+ */
+function get_active_offer_count($userID) {
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+
+    $data = $wpdb->get_results(
+        $wpdb->prepare("SELECT * FROM $table_name WHERE offer_status = 'active' AND user_id = %d", $userID)
+    );
+
+    return $data;
+}
+
+
+/**
+ * Set offer as customer declined
+ * @param int $post_id of offer edited
+ * @return bool true || false if offer edited
+ */
+function wco_customer_decline_offer($post_id){
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+
+    $sql = $wpdb->query($wpdb->prepare("UPDATE $table_name SET offer_status = 'customer_declined' WHERE post_id = %d", $post_id));
+    return $sql;
+}
+
+ /**
+ * Set offer as customer cancelled
+ * @param int $post_id of offer cancelled
+ * @return bool true || false if offer cancelled
+ */
+function wco_cancel_offer($post_id){
+    global $wpdb;
+
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+    $sql = $wpdb->query($wpdb->prepare("UPDATE $table_name SET offer_status = 'canceled' WHERE post_id = %s", $post_id));
+    return $sql;
+}
+
+/**
+ * Disable add to cart if wco coupon active in cart
+ * @return bool true || false if disabled or not
+ */
+function wco_disable_add_to_cart( $passed, $product_id, $quantity ) { 
+    $passed = true;
+    if( WC()->cart->get_coupons() ){
+        $coupons = WC()->cart->get_applied_coupons();
+        foreach($coupons as $coupon){
+            $products = wco_get_coupon_products($coupon);
+        }
+        if($products){
+            $passed = false;
+        }
+    }
+    return $passed; 
+}
+add_filter( 'woocommerce_add_to_cart_validation', 'wco_disable_add_to_cart', 10, 3 );
+
+/**
+ * Remove add to cart button when cart offer coupon active for user
+ */
+function wco_remove_add_to_cart(){
+
+    if(is_product()){
+        // Check if cart coupons active in cart
+        if( WC()->cart->get_coupons() ){
+            $coupons = WC()->cart->get_applied_coupons();
+            foreach($coupons as $coupon){
+                $products = wco_get_coupon_products($coupon);
+            }
+            if($products){
+                remove_action( 'woocommerce_after_shop_loop_item', 'woocommerce_template_loop_add_to_cart' );
+                remove_action( 'woocommerce_simple_add_to_cart', 'woocommerce_simple_add_to_cart', 30 );
+                remove_action( 'woocommerce_grouped_add_to_cart', 'woocommerce_grouped_add_to_cart', 30 );
+                remove_action( 'woocommerce_variable_add_to_cart', 'woocommerce_variable_add_to_cart', 30 );
+                remove_action( 'woocommerce_external_add_to_cart', 'woocommerce_external_add_to_cart', 30 );
+                add_action('woocommerce_single_product_summary', 'disclaimer', 50);
+            }
+        }
+
+        function disclaimer(){
+        echo "<h4>". __('Cart offer coupon active. Remove coupon from cart or complete the order if you want to add more items to cart.', 'eeco-wco') ."</h4>";
+        echo '<button type="submit" name="add-to-cart" class="single_add_to_cart_button button alt primary-cta disabled" disabled>'. __('Add to cart', 'eeco-wco') .'</button>';
+        }
+    }
+
+}
+add_action('wp', 'wco_remove_add_to_cart');
+
+/**
+ * Register emails classes
+ * @param array $emails array of email classes
+ * @return array Array of email classes
+ */
+function eeco_wco_register_emails($emails){
+    require_once EECO_WCO_ROOT.'includes/emails/class-cart-offer-accepted-email.php';
+    require_once EECO_WCO_ROOT.'includes/emails/class-cart-offer-declined-email.php';
+    require_once EECO_WCO_ROOT.'includes/emails/class-cart-offer-expiring-email.php';
+    require_once EECO_WCO_ROOT.'includes/emails/class-cart-offer-edit-email.php';
+    require_once EECO_WCO_ROOT.'includes/emails/class-new-cart-offer-email.php';
+    
+    $emails['Eeco_WCO_Offer_Accepted_Email'] = new Eeco_WCO_Offer_Accepted_Email();
+    $emails['Eeco_WCO_Offer_Edit_Email'] = new Eeco_WCO_Offer_Edit_Email();
+    $emails['Eeco_WCO_Offer_Declined_Email'] = new Eeco_WCO_Offer_Declined_Email();
+    $emails['Eeco_WCO_Offer_Expiring_Email'] = new Eeco_WCO_Offer_Expiring_Email();
+    $emails['Eeco_WCO_New_Offer_Email'] = new Eeco_WCO_New_Offer_Email();
+
+    return $emails;
+}
+
+add_filter( 'woocommerce_email_classes', 'eeco_wco_register_emails', 90, 1 );
+
+/**
+ * add email actions
+ * 
+ * @param array $actions The current actions
+ * @return array Array of email actions
+ */
+function eeco_wco_email_actions( $actions ){
+    $actions[] = 'eeco_wco_offer_accepted_email';
+    $actions[] = 'eeco_wco_offer_edit_email';
+    $actions[] = 'eeco_wco_offer_declined_email';
+    $actions[] = 'eeco_wco_offer_expiring_email';
+    $actions[] = 'eeco_wco_new_offer_email';
+
+    return $actions;
+}
+
+add_action( 'woocommerce_email_actions', 'eeco_wco_email_actions' );
+
+/**
+ * Generate the product table used in emails
+ * 
+ * @param array $items Items to populate the table with
+ * @return string Table html
+ */
+function eeco_wco_get_email_table_template($offer, $type = 'product'){
+    ob_start();
+    
+    eeco_wco_get_template("emails/$type-table.php", ['offer' => $offer]);
+
+    $html = ob_get_clean();
+
+    return $html;
+}
+
+/**
+ * Register scheduled event that triggers function eeco_wco_expiring_offer daily 
+ */
+function eeco_wco_scheduled_event(){
+    if (! wp_next_scheduled ( 'eeco_wco_offer_expiring')){
+        wp_schedule_event( time(),'daily', 'eeco_wco_offer_expiring' );
+    }
+}
+
+/**
+ * Check daily if offer is going to expire
+ */
+function eeco_wco_expiring_offer(){
+    $offers = wco_get_offers(null, array('active', 'pending'));
+
+    foreach($offers as $offer){
+        $user_info = get_userdata($offer->user_id);
+
+        if($offer->expiry_date){
+            $today = date('Y-m-d');
+            $expiry_date = date('Y-m-d', strtotime($offer->expiry_date));
+
+            if($today > $expiry_date){
+                wco_edit_offer($offer->post_id, $offer->offer_type, $offer->offer_taxes, $offer->offer_value, 'expired', $offer->expiry_date);        
+            }   
+
+            $today = new DateTime();
+            $today->setTime( 0, 0, 0 );
+            $match_date = new DateTime( $expiry_date );
+            $match_date->setTime( 0, 0, 0 );
+            $diff = $today->diff( $match_date );
+
+            $diffDays = (integer)$diff->format( "%R%a" );
+            $buffer = get_option('wco_offer_expiring_email_buffer');
+
+            if($buffer && $diffDays <= $buffer && !get_post_meta($offer->post_id, 'wco_expiring_notification_sent', true)){
+                WC()->mailer();
+                $formatted_expiry_date = date('d.m.Y', strtotime($offer->expiry_date));
+                
+                do_action('eeco_wco_offer_expiring_email', [
+                    'items' => wco_get_offer_products($offer->post_id),
+                    'email' => $user_info->user_email,
+                    'discount_type' => $offer->offer_type,
+                    'discount_value' => $offer->offer_value,
+                    'expiry_date' => $formatted_expiry_date
+                ]);
+
+                update_post_meta($offer->post_id, 'wco_expiring_notification_sent', 1);
+            } 
+        } 
+    }
+}
+add_action( 'eeco_wco_offer_expiring', 'eeco_wco_expiring_offer', 10);
+
+/**
+ * @param array $status Array of offer statuses
+ * @param datetime $start Start date Y-m-d H:i:s
+ * @param datetime $end End date Y-m-d H:i:s
+ * @return int Total value of given offers
+ */
+function get_offer_values($status, $start = '1970-01-01 00:00:00', $end = '2500-01-01 23:59:59') {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+    $statuses = implode("', '", $status);
+    $query = "SELECT o.post_id 
+    FROM $table_name o
+    LEFT JOIN {$wpdb->posts} posts ON o.post_id = posts.ID
+    WHERE o.offer_status IN ('$statuses')
+    AND posts.post_date >= %s
+    AND posts.post_date <= %s";
+    $ids = $wpdb->get_results($wpdb->prepare($query, $start, $end));
+
+    $offer_value = 0;
+    foreach ($ids as $id) {
+        $offer = wco_get_offer($id->post_id);
+        $products = wco_get_products($id->post_id);
+        $line_total = 0;
+        foreach ($products as $product) {
+            $line_total = $line_total + $product->line_total;
+        }
+        $discounted_price = $offer->offer_type == 'percentage' ? (1 - ($offer->offer_value / 100)) * $line_total : $line_total - ($offer->offer_value / 1.24);
+        $offer_value = $offer_value + $discounted_price;
+    }
+
+    return $offer_value;
+}
+
+/**
+ * Get discounted price for quote
+ * @param object $offer Offer
+ * @return string Discounted price of the quote wc_price()
+ */
+function get_offer_discount($offer) {
+    $discount = '';
+    if ($offer->offer_value != 0) {
+        $taxes = get_option( 'woocommerce_tax_display_shop' );
+        $products = wco_get_products($offer->post_id);
+        $total = 0;
+        $total_incl_tax = 0;
+        $total_excl_tax = 0;
+        foreach($products as $product) {
+            $line_total = $taxes === 'incl' ? $product->line_total + $product->tax_total : $product->line_total;
+            $total_incl_tax = $total_incl_tax + ($product->line_total + $product->tax_total);
+            $total_excl_tax = $total_excl_tax + $product->line_total;
+            $total = $total + $line_total;
+        }
+        if ($offer->offer_type == 'price') {
+            if (($offer->offer_taxes == 'tax-free' && $taxes === 'excl') || ($offer->offer_taxes == 'taxable' && $taxes === 'incl')) {
+                $discount = wc_price($total -  $offer->offer_value);
+            } elseif ($offer->offer_taxes == 'taxable' && $taxes === 'excl') {
+                $discount = wc_price(($total_incl_tax - $offer->offer_value) / ($total_incl_tax / $total_excl_tax));
+            } elseif ($offer->offer_taxes == 'tax-free' && $taxes === 'incl') {
+                $discount = wc_price($total - ($total_incl_tax / $total_excl_tax * $offer->offer_value));
+            }
+        } else {
+            $discount = wc_price((1 - ($offer->offer_value / 100)) * $total);
+        }
+    }
+    return $discount;
+}
+/**
+ * Get discount value for quote
+ * @param object $offer Offer
+ * @return int Discount value
+ */
+function get_offer_discount_value($offer) {
+    $discount_value = 0;
+    if ($offer->offer_value != 0) {
+        $taxes = get_option( 'woocommerce_tax_display_shop' );
+        $products = wco_get_products($offer->post_id);
+        $total = 0;
+        $total_incl_tax = 0;
+        $total_excl_tax = 0;
+        foreach($products as $product) {
+            $line_total = $taxes === 'incl' ? $product->line_total + $product->tax_total : $product->line_total;
+            $total_incl_tax = $total_incl_tax + ($product->line_total + $product->tax_total);
+            $total_excl_tax = $total_excl_tax + $product->line_total;
+            $total = $total + $line_total;
+        }
+        if ($offer->offer_type == 'price') {
+            if (($offer->offer_taxes == 'tax-free' && $taxes === 'excl') || ($offer->offer_taxes == 'taxable' && $taxes === 'incl')) {
+                $discount_value = $offer->offer_value;
+            } elseif ($offer->offer_taxes == 'taxable' && $taxes === 'excl') {
+                $discount_value = $total - ($total_incl_tax - $offer->offer_value) / ($total_incl_tax / $total_excl_tax);
+            } elseif ($offer->offer_taxes == 'tax-free' && $taxes === 'incl') {
+                $discount_value = ($total_incl_tax / $total_excl_tax * $offer->offer_value);
+            }
+        } else {
+            $discount_value = ($offer->offer_value / 100) * $total;
+        }
+    }
+    return $discount_value;
+}
+/*
+ * @param array $status Array of offer statuses
+ * @param datetime $start Start date Y-m-d H:i:s
+ * @param datetime $end End date Y-m-d H:i:s
+ * @return int Total value of given offers
+ */
+function get_admin_dates_offer_values($status, $start = '1970-01-01', $end = '2500-01-01') {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'eeco_wco_offers';
+    $statuses = implode("', '", $status);
+    $query = "SELECT o.post_id 
+    FROM $table_name o
+    LEFT JOIN {$wpdb->posts} posts ON o.post_id = posts.ID
+    WHERE o.offer_status IN ('$statuses')
+    AND o.offer_given >= %s
+    AND o.offer_given <= %s";
+    $ids = $wpdb->get_results($wpdb->prepare($query, $start, $end));
+
+    $offer_value = 0;
+    foreach ($ids as $id) {
+        $offer = wco_get_offer($id->post_id);
+        $products = wco_get_products($id->post_id);
+        $line_total = 0;
+        foreach ($products as $product) {
+            $line_total = $line_total + $product->line_total;
+        }
+        $discounted_price = $offer->offer_type == 'percentage' ? (1 - ($offer->offer_value / 100)) * $line_total : $line_total - ($offer->offer_value / 1.24);
+        $offer_value = $offer_value + $discounted_price;
+    }
+
+    return $offer_value;
+}

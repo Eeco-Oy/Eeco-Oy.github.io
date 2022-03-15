@@ -1,0 +1,74 @@
+<div class="wco-group">
+    <label for="wco_cart_conditions_rule"><strong><?php _e('Cart condition rule', 'eeco-wco') ?></strong></label>
+    <select name="wco_cart_conditions_rule" id="wco_cart_conditions_rule">
+        <option value="or" <?php selected(get_option('wco_cart_conditions_rule'), 'or') ?>><?php _e('At least one condition must match', 'eeco-wco')?></option>
+        <option value="and" <?php selected(get_option('wco_cart_conditions_rule'), 'and') ?>><?php _e('All conditions must match', 'eeco-wco')?></option>
+    </select>
+    <div class="wco-template wco-hidden-template wco-condition">    
+        <input type="checkbox" class="wco-remove">
+        <div class="condition-wrapper">
+            <label for=""><?php _e('Condition', 'eeco-wco') ?></label>
+            <select name="wco_cart_conditions[index][]" class="wco-condition-term wco-form-item" disabled>
+                <option value="subtotal_incl"><?php _e('Subtotal (incl. taxes)', 'eeco-wco') ?></option>
+                <option value="subtotal_excl"><?php _e('Subtotal (excl. taxes)', 'eeco-wco') ?></option>
+                <option value="products"><?php _e('Unique products', 'eeco-wco') ?></option>
+                <option value="unique_products"><?php _e('Products', 'eeco-wco') ?></option>
+            </select>
+        </div>
+        <div class="wco-operator">
+            <label for=""><?php _e('Operator', 'eeco-wco') ?></label>
+            <select name="wco_cart_conditions[index][]" class="wco-condition-term wco-form-item" disabled>
+                <option value="gt"><?php _e('Greater than', 'eeco-wco') ?></option>
+                <option value="gte"><?php _e('Greater than or equal to', 'eeco-wco') ?></option>
+                <option value="lt"><?php _e('Less than', 'eeco-wco') ?></option>
+                <option value="lte"><?php _e('Less than or equal to', 'eeco-wco') ?></option>
+                <option value="eq"><?php _e('Equal to', 'eeco-wco') ?></option>
+            </select>
+        </div> 
+        <div class="wco-item-picker">
+            <label for=""><?php _e('Value', 'eeco-wco') ?></label>
+            <input type="number" name="wco_cart_conditions[index][]" class="wco-form-item" disabled>
+        </div>
+    </div>
+    <div class="wco-product-conditions" data-name="wco_cart_conditions">
+        <div class="wco-offer-row">
+            <label>
+                <strong><?php echo _x('Cart value conditions','description text for conditions','eeco-wco') ?></strong>
+            </label>
+            <i><?php _e("User's cart must fulfil these conditions before they can submit a quote request",'eeco-wco') ?></i>
+            <?php $conditions = get_option('wco_cart_conditions', []);
+            foreach ($conditions as $key => $condition): ?>
+                <div class="wco-conditions-existing wco-condition">
+                    <input type="checkbox" class="wco-remove">
+                    <div class="condition-wrapper">
+                        <label for=""><?php _e('Condition', 'eeco-wco') ?></label>
+                        <select name="wco_cart_conditions[<?php echo $key ?>][0]" class="wco-condition-term wco-form-item">
+                            <option value="subtotal_incl" <?php selected($condition[0], 'subtotal_incl')?>><?php _e('Subtotal (incl. taxes)', 'eeco-wco') ?></option>
+                            <option value="subtotal_excl" <?php selected($condition[0], 'subtotal_excl')?>><?php _e('Subtotal (excl. taxes)', 'eeco-wco') ?></option>
+                            <option value="products" <?php selected($condition[0], 'products')?>><?php _e('Products', 'eeco-wco') ?></option>
+                            <option value="unique_products" <?php selected($condition[0], 'unique_products')?>><?php _e('Unique products', 'eeco-wco') ?></option>
+                        </select>
+                    </div>
+                    <div class="wco-operator">
+                        <label for=""><?php _e('Operator', 'eeco-wco') ?></label>
+                        <select name="wco_cart_conditions[<?php echo $key ?>][1]" class="wco-condition-term wco-form-item">
+                            <option value="gt" <?php selected($condition[1], 'gt')?>><?php _e('Greater than', 'eeco-wco') ?></option>
+                            <option value="gte" <?php selected($condition[1], 'gte')?>><?php _e('Greater than or equal to', 'eeco-wco') ?></option>
+                            <option value="lt" <?php selected($condition[1], 'lt')?>><?php _e('Less than', 'eeco-wco') ?></option>
+                            <option value="lte" <?php selected($condition[1], 'lte')?>><?php _e('Less than or equal to', 'eeco-wco') ?></option>
+                            <option value="eq" <?php selected($condition[1], 'eq')?>><?php _e('Equal to', 'eeco-wco') ?></option>
+                        </select>
+                    </div> 
+                    <div class="wco-item-picker">
+                        <label for=""><?php _e('Value', 'eeco-wco') ?></label>
+                        <input type="number" name="wco_cart_conditions[<?php echo $key ?>][2]" value="<?php echo $condition[2] ?>" class="wco-form-item">
+                    </div>
+                </div>  
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <div class="wco-button-group">
+        <button type="button" class="wco-add-condition button button-primary"><?php _e('Add condition', 'eeco-wco') ?></button>
+        <button type="button" class="wco-remove-condition button"><?php _e('Remove selected', 'eeco-wco') ?></button>
+    </div>
+</div>

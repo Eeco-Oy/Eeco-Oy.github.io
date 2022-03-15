@@ -214,7 +214,7 @@ class Eeco_Gift_Cards_Checkout{
      * @return int|string The id
      */
     public function generate_gift_card_id($product){
-        if(get_option('eeco_gift_cards_id_type') === 'numeric'){
+        if(get_option('eeco_gift_cards_id_type') == 'numeric'){
             $code = (int)get_option('eeco_gift_cards_latest_numeric_code');
             $min = (int)get_option('eeco_gift_cards_id_range_min');
 

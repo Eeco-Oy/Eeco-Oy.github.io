@@ -1,0 +1,44 @@
+<!-- Cart page form to send offer request -->
+<div class="wco-contact-form">
+    <p class="wco-contact-form-text"><?php _e('Do you want to submit a request for quotation for the contents of the Shopping Cart?', 'eeco-wco') ?></p>
+    <button type="button" id="wco-modal-toggle" class="button secondary-cta" data-toggle="wco-modal" data-target="#wco-modal"><?php _e('Request a discount', 'eeco-wco') ?></button>
+    <div class="modal wco-modal" id="wco_modal">
+        <div class="wco-modal-content">
+            <div class="wco-modal-header">
+                <span id="wco-modal-close" class="close">&#x2715;</span>
+                <h3 class="modal-title"><?php _e('Send a quote request', 'eeco-wco'); ?></h3>
+            </div>
+            <div class="wco-modal-body">
+                <div class="wco-form-row">
+                    <?php 
+                    $customer = new WC_Customer( get_current_user_id() );
+                    $billing_phone = $customer->get_billing_phone();
+                    $first_name = $customer->get_billing_first_name() ? $customer->get_billing_first_name() : '';
+                    $last_name = $customer->get_billing_last_name() ? $customer->get_billing_last_name() : ''; ?>
+
+                    <div class="name-wrapper">
+                        <label for="wco_form_first_name" class="name-label"><?php _e('First name', 'eeco-wco'); ?>&nbsp;<abbr class="required" title="<?php _e('required', 'eeco-wco') ?>">*</abbr></label>
+                        <input id="wco_form_first_name" class="name_inputs" name="wco_form_first_name" type="text" value="<?php echo $first_name?>" required></input>
+                    </div>
+                    <div class="name-wrapper">
+                        <label for="wco_form_last_name" class="name-label"><?php _e('Last name', 'eeco-wco'); ?>&nbsp;<abbr class="required" title="<?php _e('required', 'eeco-wco') ?>">*</abbr></label>
+                        <input id="wco_form_last_name" class="name_inputs" name="wco_form_last_name" type="text" value="<?php echo $last_name?>" required></input>
+                    </div>
+                </div>
+                <div class="wco-form-group">
+                    <label for="wco_form_email"><?php _e('Email', 'eeco-wco'); ?>&nbsp;<abbr class="required" title="<?php _e('required', 'eeco-wco') ?>">*</abbr></label>
+                    <input id="wco_form_email" name="wco_form_email" type="email" value="<?php echo $user->user_email;?>" required></input>
+                </div>
+                <div class="wco-form-group">
+                    <label for="wco_form_phone"><?php _e('Phone number', 'eeco-wco'); ?>&nbsp;<abbr class="required" title="<?php _e('required', 'eeco-wco') ?>">*</abbr></label>
+                    <input id="wco_form_phone" name="wco_form_phone" type="tel" value="<?php echo  $billing_phone;?>" required></input>
+                </div>
+                <div class="wco-form-group">
+                    <label for="wco_form_additional"><?php _e('Message', 'eeco-wco'); ?></label>
+                    <input id="wco_form_additional" class="wco-textarea" name="wco_form_additional" type="textarea" value =""></input>
+                </div>
+                <button class="button wco-send-request" id="create_wco_post"><?php _e('Send request', 'eeco-wco'); ?></button>
+            </div>
+        </div>
+    </div>
+</div>
